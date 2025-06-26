@@ -92,7 +92,7 @@ export const List = () => {
             void utils.mailbox.conversations.count.invalidate();
 
             if (updatedImmediately) {
-              const actionText = status === "open" ? "re-opened" : status === "closed" ? "closed" : "marked as spam";
+              const actionText = status === "open" ? "reopened" : status === "closed" ? "closed" : "marked as spam";
               toast({
                 title: `${selectedCount} ticket${selectedCount === 1 ? "" : "s"} ${actionText}`,
               });
@@ -219,7 +219,7 @@ export const List = () => {
                       onClick={() => handleBulkUpdate("open")}
                       disabled={isBulkUpdating}
                     >
-                      Re-open
+                      Reopen
                     </Button>
                   ) : (
                     <Button
