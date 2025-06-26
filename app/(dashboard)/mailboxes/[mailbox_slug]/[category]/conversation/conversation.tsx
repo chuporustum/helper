@@ -1,11 +1,10 @@
 import FileSaver from "file-saver";
 import {
-  ArrowLeft,
-  ArrowRight,
   ArrowUp,
   ChevronLeft,
   ChevronRight,
   Download,
+  FileText,
   Info,
   Link as LinkIcon,
   PanelRightClose,
@@ -13,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useMediaQuery } from "react-responsive";
 import { useStickToBottom } from "use-stick-to-bottom";
 import { create } from "zustand";
@@ -35,6 +34,7 @@ import {
   type Note,
 } from "@/app/types/global";
 import { CarouselDirection, createCarousel } from "@/components/carousel";
+import { ConversationSummaryDialog } from "@/components/conversationSummaryDialog";
 import LoadingSpinner from "@/components/loadingSpinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -47,8 +47,10 @@ import { useBreakpoint } from "@/components/useBreakpoint";
 import type { serializeMessage } from "@/lib/data/conversationMessage";
 import { conversationChannelId } from "@/lib/realtime/channels";
 import { useRealtimeEvent } from "@/lib/realtime/hooks";
+import { captureExceptionAndLog } from "@/lib/shared/sentry";
 import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
+import { ConversationSummary } from "@/types/summarization";
 import { useConversationsListInput } from "../shared/queries";
 import ConversationSidebar from "./conversationSidebar";
 import { MessageActions } from "./messageActions";
@@ -231,58 +233,128 @@ const ConversationHeader = ({
   const { minimize, moveToNextConversation, moveToPreviousConversation, currentIndex, currentTotal, hasNextPage } =
     useConversationListContext();
 
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+  const [summary, setSummary] = useState<ConversationSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // Reset summary state when conversation changes
+  useEffect(() => {
+    setSummary(null);
+    setSummaryError(null);
+  }, [conversationInfo?.slug]);
+
+  const handleSummarize = useCallback(async () => {
+    if (!conversationInfo?.slug || !mailboxSlug) return;
+
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setShowSummaryDialog(true);
+
+    try {
+      const response = await fetch(`/api/chat/conversation/${conversationInfo.slug}/summarize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mailboxSlug,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate summary");
+      }
+
+      const data = await response.json();
+      setSummary(data.summary);
+    } catch (error) {
+      captureExceptionAndLog(error);
+      setSummaryError(error instanceof Error ? error.message : "Failed to generate summary");
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [conversationInfo?.slug, mailboxSlug]);
+
   return (
-    <div
-      className={cn(
-        "flex items-center border-b border-border h-12 px-2 md:px-4 gap-x-2",
-        !conversationInfo && "hidden",
-      )}
-      style={{ minHeight: 48 }}
-    >
-      <div className="flex items-center min-w-0 flex-shrink-0 z-10 lg:w-44">
-        <Button variant="ghost" size="sm" iconOnly onClick={minimize} className="text-primary hover:text-foreground">
-          <X className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center ml-2">
-          <Button variant="ghost" size="sm" iconOnly onClick={moveToPreviousConversation}>
-            <ChevronLeft className="h-4 w-4" />
+    <>
+      <div
+        className={cn(
+          "flex items-center border-b border-border h-12 px-2 md:px-4 gap-x-2",
+          !conversationInfo && "hidden",
+        )}
+        style={{ minHeight: 48 }}
+      >
+        <div className="flex items-center min-w-0 flex-shrink-0 z-10 lg:w-44">
+          <Button variant="ghost" size="sm" iconOnly onClick={minimize} className="text-primary hover:text-foreground">
+            <X className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground whitespace-nowrap text-center mx-1">
-            {currentIndex + 1} of {currentTotal}
-            {hasNextPage ? "+" : ""}
-          </span>
-          <Button variant="ghost" size="sm" iconOnly onClick={moveToNextConversation}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center ml-2">
+            <Button variant="ghost" size="sm" iconOnly onClick={moveToPreviousConversation}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground whitespace-nowrap text-center mx-1">
+              {currentIndex + 1} of {currentTotal}
+              {hasNextPage ? "+" : ""}
+            </span>
+            <Button variant="ghost" size="sm" iconOnly onClick={moveToNextConversation}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="flex-1 min-w-0 flex justify-center">
-        <div className="truncate text-base font-semibold text-foreground text-center max-w-full">
-          {conversationMetadata.subject ?? "(no subject)"}
+        <div className="flex-1 min-w-0 flex justify-center">
+          <div className="truncate text-base font-semibold text-foreground text-center max-w-full">
+            {conversationMetadata.subject ?? "(no subject)"}
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2 min-w-0 flex-shrink-0 z-10 lg:w-44 justify-end">
-        <CopyLinkButton />
-        {conversationInfo?.id && <Viewers mailboxSlug={mailboxSlug} conversationSlug={conversationInfo.slug} />}
-        <Button
-          variant={!isAboveSm && sidebarVisible ? "subtle" : "ghost"}
-          size="sm"
-          iconOnly
-          onClick={() => setSidebarVisible(!sidebarVisible)}
-        >
-          {isAboveSm ? (
-            sidebarVisible ? (
-              <PanelRightClose className="h-4 w-4" />
+        <div className="flex items-center gap-2 min-w-0 flex-shrink-0 z-10 lg:w-44 justify-end">
+          <CopyLinkButton />
+          {conversationInfo?.id && <Viewers mailboxSlug={mailboxSlug} conversationSlug={conversationInfo.slug} />}
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                onClick={handleSummarize}
+                disabled={!conversationInfo || summaryLoading}
+              >
+                <FileText className="h-4 w-4" />
+                <span className="sr-only">Summarize conversation</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{summaryLoading ? "Generating summary..." : "Summarize conversation"}</TooltipContent>
+          </Tooltip>
+          <Button
+            variant={!isAboveSm && sidebarVisible ? "subtle" : "ghost"}
+            size="sm"
+            iconOnly
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+          >
+            {isAboveSm ? (
+              sidebarVisible ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRightOpen className="h-4 w-4" />
+              )
             ) : (
-              <PanelRightOpen className="h-4 w-4" />
-            )
-          ) : (
-            <Info className="h-4 w-4" />
-          )}
-          <span className="sr-only">{sidebarVisible ? "Hide sidebar" : "Show sidebar"}</span>
-        </Button>
+              <Info className="h-4 w-4" />
+            )}
+            <span className="sr-only">{sidebarVisible ? "Hide sidebar" : "Show sidebar"}</span>
+          </Button>
+        </div>
       </div>
-    </div>
+
+      {/* Conversation Summary Dialog */}
+      <ConversationSummaryDialog
+        open={showSummaryDialog}
+        onOpenChange={setShowSummaryDialog}
+        summary={summary}
+        isLoading={summaryLoading}
+        error={summaryError}
+      />
+    </>
   );
 };
 
