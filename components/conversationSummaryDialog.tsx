@@ -45,33 +45,35 @@ export function ConversationSummaryDialog({
   };
 
   const splitIntoBullets = (text: string): string[] => {
-    if (!text) return [];
+    if (!text || text.trim().length === 0) {
+      return ["No information available"];
+    }
 
-    let cleanText = text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/_{2,}/g, "").replace(/`/g, "").trim();
+    const cleanText = text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/_{2,}/g, "").replace(/`/g, "").trim();
 
-    const dashSeparated = cleanText.split(/\s*-\s+(?=[A-Z])/).filter((item) => item.trim().length > 0);
+    const dashSeparated = cleanText.split(/\s*-\s+/).filter((item) => item.trim().length > 0);
 
     if (dashSeparated.length > 1) {
       return dashSeparated.map((item) => {
-        let cleaned = item.replace(/^[-•*]\s*/, "").trim();
-        return cleaned.endsWith(".") ? cleaned : cleaned + ".";
+        const cleaned = item.replace(/^[-•*]\s*/, "").trim();
+        return cleaned.length > 0 ? (cleaned.endsWith(".") ? cleaned : `${cleaned}.`) : item.trim();
       });
     }
 
     const sentences = cleanText
-      .split(/\.(?=\s+[A-Z]|$)/)
+      .split(/\.(?=\s+[A-Za-z0-9]|$)/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
       .map((s) => {
-        let cleaned = s.replace(/^[-•*]\s*/, "").trim();
-        return cleaned.endsWith(".") ? cleaned : cleaned + ".";
+        const cleaned = s.replace(/^[-•*]\s*/, "").trim();
+        return cleaned.length > 0 ? (cleaned.endsWith(".") ? cleaned : `${cleaned}.`) : s.trim();
       });
 
     if (sentences.length > 1) {
       return sentences;
     }
 
-    const parts = cleanText.split(/[,;](?=\s+[A-Z])/);
+    const parts = cleanText.split(/[,;](?=\s+[A-Za-z0-9])/);
     if (parts.length > 1) {
       return parts
         .map((p) => {
@@ -80,7 +82,8 @@ export function ConversationSummaryDialog({
         .filter((p) => p.length > 0);
     }
 
-    return [cleanText.replace(/^[-•*]\s*/, "").trim()];
+    const fallback = cleanText.replace(/^[-•*]\s*/, "").trim();
+    return [fallback.length > 0 ? fallback : cleanText];
   };
 
   const cleanDisplayText = (text: string): string => {
