@@ -1,4 +1,3 @@
-import "server-only";
 import {
   and,
   asc,
@@ -17,7 +16,6 @@ import {
   sql,
 } from "drizzle-orm";
 import { memoize } from "lodash-es";
-import { z } from "zod";
 import { db } from "@/db/client";
 import { decryptFieldValue } from "@/db/lib/encryptedField";
 import { conversationEvents, conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
@@ -29,6 +27,8 @@ import {
   MARKED_AS_SPAM_BY_AGENT_MESSAGE,
   REOPENED_BY_AGENT_MESSAGE,
 } from "@/lib/slack/constants";
+import "server-only";
+import { z } from "zod";
 import { searchEmailsByKeywords } from "../../emailSearchService/searchEmailsByKeywords";
 
 export const searchConversations = async (
@@ -92,6 +92,12 @@ export const searchConversations = async (
                   eq(conversationMessages.conversationId, conversations.id),
                   eq(conversationMessages.reactionType, filters.reactionType),
                   isNull(conversationMessages.deletedAt),
+                  filters.reactionAfter
+                    ? gt(conversationMessages.reactionCreatedAt, new Date(filters.reactionAfter))
+                    : undefined,
+                  filters.reactionBefore
+                    ? lt(conversationMessages.reactionCreatedAt, new Date(filters.reactionBefore))
+                    : undefined,
                 ),
               ),
           ),
