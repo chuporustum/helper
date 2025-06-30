@@ -4,7 +4,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import { TextSelection } from "@tiptap/pm/state";
-import { BubbleMenu, EditorContent, useEditor, type FocusPosition } from "@tiptap/react";
+import { EditorContent, useEditor, type FocusPosition } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import partition from "lodash/partition";
 import React, { ReactNode, useEffect, useImperativeHandle, useRef } from "react";
@@ -440,23 +440,6 @@ const TipTapEditor = ({
             </div>
           ) : null}
         </div>
-
-        {editor && (
-          <BubbleMenu
-            editor={editor}
-            tippyOptions={{
-              duration: 100,
-              placement: "bottom-start",
-              appendTo: editorContentContainerRef.current || "parent",
-            }}
-            shouldShow={({ editor }) =>
-              isAboveMd && editor.state.selection.content().size > 0 && !editor.isActive("image")
-            }
-            className="rounded border border-border bg-background p-2 text-xs text-muted-foreground"
-          >
-            Hint: Paste URL to create link
-          </BubbleMenu>
-        )}
       </div>
       <div className="flex w-full justify-between md:justify-start">
         <div className="w-full md:w-auto">

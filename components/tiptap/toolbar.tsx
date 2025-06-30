@@ -5,6 +5,7 @@ import ToolbarFile from "@/components/tiptap/icons/file.svg";
 import { imageFileTypes } from "@/components/tiptap/image";
 import LinkModal from "@/components/tiptap/linkModal";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBreakpoint } from "@/components/useBreakpoint";
 import { cn } from "@/lib/utils";
 import ToolbarBlockquote from "./icons/blockquote.svg";
@@ -48,7 +49,27 @@ const Toolbar = ({
   const [isLinkModalOpen, setLinkModalOpen] = useState(false);
   const [linkData, setLinkData] = useState({ url: "", text: "" });
   const [activeLinkElement, setActiveLinkElement] = useState<HTMLElement | null>(null);
+  const [selectionUpdate, setSelectionUpdate] = useState(0);
+
   useEffect(() => setLinkData({ url: "", text: "" }), [editor]);
+
+  // Force re-render when selection changes
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      setSelectionUpdate((prev) => prev + 1);
+    };
+
+    editor.on("selectionUpdate", handleSelectionUpdate);
+    editor.on("transaction", handleSelectionUpdate);
+
+    return () => {
+      editor.off("selectionUpdate", handleSelectionUpdate);
+      editor.off("transaction", handleSelectionUpdate);
+    };
+  }, [editor]);
+
   const toggleLinkModal = (open: boolean) => {
     if (!open) return setLinkModalOpen(false);
     if (!editor) return;
@@ -151,6 +172,26 @@ const Toolbar = ({
     }
   };
 
+  // Check if multiple formatting marks are applied
+  const hasMultipleFormats = () => {
+    if (!editor) return false;
+    const { state } = editor;
+    const { from, to } = state.selection;
+    if (from === to) return false; // No selection
+
+    // Count active formatting marks
+    let formatCount = 0;
+    if (editor.isActive("bold")) formatCount++;
+    if (editor.isActive("italic")) formatCount++;
+    if (editor.isActive("underline")) formatCount++;
+    if (editor.isActive("link")) formatCount++;
+    if (editor.isActive("strike")) formatCount++;
+
+    return formatCount > 1;
+  };
+
+  const shouldShowClearFormatting = hasMultipleFormats();
+
   const imageFieldId = React.useId();
   const fileFieldId = React.useId();
   const baseToolbarStyles = "w-8 h-8 flex items-center justify-center rounded hover:bg-secondary cursor-pointer";
@@ -205,14 +246,23 @@ const Toolbar = ({
           >
             <ToolbarLink />
           </button>
-          <button
-            type="button"
-            onClick={() => editor.chain().focus().unsetAllMarks().run()}
-            className={baseToolbarStyles}
-            aria-label="Clear formatting"
-          >
-            <RemoveFormatting className="w-4 h-4" />
-          </button>
+          {shouldShowClearFormatting && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().unsetAllMarks().run()}
+                    className={`${baseToolbarStyles} bg-muted/50 hover:bg-muted border border-muted-foreground/20`}
+                    aria-label="Clear all formatting"
+                  >
+                    <RemoveFormatting className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Clear all formatting</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {isLinkModalOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2">
               <LinkModal
