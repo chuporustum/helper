@@ -1,11 +1,13 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversationEvents, conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
+import { authUsers } from "@/db/supabaseSchema/auth";
+import { getFullName } from "@/lib/auth/authUtils";
 import { Mailbox } from "@/lib/data/mailbox";
 import { determineVipStatus } from "@/lib/data/platformCustomer";
 
 type DashboardEventPayload = {
-  type: "email" | "chat" | "ai_reply" | "human_support_request" | "good_reply" | "bad_reply";
+  type: "email" | "chat" | "ai_reply" | "human_support_request" | "good_reply" | "bad_reply" | "new_conversation";
   id: string;
   conversationSlug: string;
   emailFrom: string | null;
@@ -14,6 +16,9 @@ type DashboardEventPayload = {
   isVip: boolean;
   description?: string | null;
   timestamp: Date;
+  messageCount?: number;
+  agentInitiated?: boolean;
+  agentName?: string;
 };
 
 type ConversationForEvent = Pick<typeof conversations.$inferSelect, "slug" | "emailFrom" | "subject"> & {
@@ -23,12 +28,16 @@ type ConversationForEvent = Pick<typeof conversations.$inferSelect, "slug" | "em
 type BaseEventInput = {
   conversation: ConversationForEvent;
   mailbox: Pick<typeof mailboxes.$inferSelect, "vipThreshold">;
+  agentInitiated?: boolean;
+  agentName?: string;
 };
 
 const createBaseEventPayload = ({
   conversation,
   mailbox,
-}: BaseEventInput): Omit<DashboardEventPayload, "type" | "id" | "description" | "timestamp"> => {
+  agentInitiated,
+  agentName,
+}: BaseEventInput): Omit<DashboardEventPayload, "type" | "id" | "description" | "timestamp" | "messageCount"> => {
   const value = conversation.platformCustomer?.value ? Number(conversation.platformCustomer.value) : null;
   return {
     conversationSlug: conversation.slug,
@@ -36,6 +45,8 @@ const createBaseEventPayload = ({
     title: conversation.subject,
     value,
     isVip: determineVipStatus(value, mailbox.vipThreshold),
+    agentInitiated,
+    agentName,
   };
 };
 
@@ -44,9 +55,11 @@ export const createMessageEventPayload = (
     conversation: ConversationForEvent;
   },
   mailbox: Pick<typeof mailboxes.$inferSelect, "vipThreshold">,
+  agentInitiated?: boolean,
+  agentName?: string,
 ): DashboardEventPayload => {
   return {
-    ...createBaseEventPayload({ conversation: message.conversation, mailbox }),
+    ...createBaseEventPayload({ conversation: message.conversation, mailbox, agentInitiated, agentName }),
     type: message.role === "ai_assistant" ? "ai_reply" : message.emailTo ? "email" : "chat",
     id: `${message.id}-message`,
     description: message.cleanedUpText,
@@ -62,9 +75,11 @@ export const createReactionEventPayload = (
     conversation: ConversationForEvent;
   },
   mailbox: Pick<typeof mailboxes.$inferSelect, "vipThreshold">,
+  agentInitiated?: boolean,
+  agentName?: string,
 ): DashboardEventPayload => {
   return {
-    ...createBaseEventPayload({ conversation: message.conversation, mailbox }),
+    ...createBaseEventPayload({ conversation: message.conversation, mailbox, agentInitiated, agentName }),
     type: message.reactionType === "thumbs-up" ? "good_reply" : "bad_reply",
     id: `${message.id}-reaction`,
     description: message.reactionFeedback,
@@ -77,9 +92,11 @@ export const createHumanSupportRequestEventPayload = (
     conversation: ConversationForEvent;
   },
   mailbox: Pick<typeof mailboxes.$inferSelect, "vipThreshold">,
+  agentInitiated?: boolean,
+  agentName?: string,
 ): DashboardEventPayload => {
   return {
-    ...createBaseEventPayload({ conversation: request.conversation, mailbox }),
+    ...createBaseEventPayload({ conversation: request.conversation, mailbox, agentInitiated, agentName }),
     type: "human_support_request",
     id: `${request.id}-human-support-request`,
     timestamp: request.createdAt,
@@ -87,101 +104,165 @@ export const createHumanSupportRequestEventPayload = (
 };
 
 export const getLatestEvents = async (mailbox: Mailbox, before?: Date) => {
-  const messages = await db.query.conversationMessages.findMany({
-    columns: {
-      id: true,
-      createdAt: true,
-      role: true,
-      userId: true,
-      cleanedUpText: true,
-      emailTo: true,
-    },
+  // Get all recent conversations in the mailbox
+  const recentConversations = await db.query.conversations.findMany({
+    columns: { id: true, slug: true, emailFrom: true, subject: true, createdAt: true },
     with: {
-      conversation: {
-        columns: { subject: true, emailFrom: true, slug: true },
-        with: {
-          platformCustomer: { columns: { value: true } },
-        },
-      },
+      platformCustomer: { columns: { value: true } },
     },
-    where: and(
-      inArray(
-        conversationMessages.conversationId,
-        db.select({ id: conversations.id }).from(conversations).where(eq(conversations.mailboxId, mailbox.id)),
-      ),
-      inArray(conversationMessages.role, ["user", "staff", "ai_assistant"]),
-      isNull(conversationMessages.deletedAt),
-      before ? lt(conversationMessages.createdAt, before) : undefined,
-    ),
-    orderBy: desc(conversationMessages.createdAt),
-    limit: 20,
+    where: and(eq(conversations.mailboxId, mailbox.id), before ? lt(conversations.createdAt, before) : undefined),
+    orderBy: desc(conversations.createdAt),
+    limit: 50, // Get more conversations since we'll be filtering to get latest activity per conversation
   });
 
-  if (messages.length === 0) return [];
+  if (recentConversations.length === 0) return [];
 
-  const earliestMessageTimestamp = new Date(Math.min(...messages.map((message) => message.createdAt.getTime())));
+  const conversationIds = recentConversations.map((c) => c.id);
 
-  const messageEvents = messages.map((message) => createMessageEventPayload(message, mailbox));
+  // Get the most recent activity for each conversation
+  const events: DashboardEventPayload[] = [];
 
-  const [reactions, humanSupportRequests] = await Promise.all([
-    db.query.conversationMessages.findMany({
+  // Get most recent message per conversation
+  for (const conversation of recentConversations) {
+    const conversationData = {
+      slug: conversation.slug,
+      emailFrom: conversation.emailFrom,
+      subject: conversation.subject,
+      platformCustomer: conversation.platformCustomer,
+    };
+
+    // Check if this is an agent-initiated conversation
+    let agentInitiated = false;
+    let agentName: string | undefined;
+
+    if (!conversation.emailFrom) {
+      // Get the first message to see if it's from an agent
+      const firstMessage = await db.query.conversationMessages.findFirst({
+        columns: { role: true, userId: true },
+        where: and(eq(conversationMessages.conversationId, conversation.id), isNull(conversationMessages.deletedAt)),
+        orderBy: conversationMessages.createdAt,
+      });
+
+      if (firstMessage?.role === "staff" && firstMessage.userId) {
+        agentInitiated = true;
+        // Get the agent's display name
+        const agent = await db.query.authUsers.findFirst({
+          where: eq(authUsers.id, firstMessage.userId),
+        });
+        if (agent) {
+          agentName = getFullName(agent);
+        }
+      }
+    }
+
+    // Get most recent message (user, staff, ai_assistant - include all message types)
+    const recentMessage = await db.query.conversationMessages.findFirst({
+      columns: {
+        id: true,
+        createdAt: true,
+        role: true,
+        cleanedUpText: true,
+        emailTo: true,
+      },
+      where: and(
+        eq(conversationMessages.conversationId, conversation.id),
+        inArray(conversationMessages.role, ["user", "staff", "ai_assistant"]),
+        isNull(conversationMessages.deletedAt),
+      ),
+      orderBy: desc(conversationMessages.createdAt),
+    });
+
+    // Get most recent reaction
+    const recentReaction = await db.query.conversationMessages.findFirst({
       columns: {
         id: true,
         reactionType: true,
         reactionFeedback: true,
         reactionCreatedAt: true,
       },
-      with: {
-        conversation: {
-          columns: { subject: true, emailFrom: true, slug: true },
-          with: {
-            platformCustomer: { columns: { value: true } },
-          },
-        },
-      },
       where: and(
-        inArray(
-          conversationMessages.conversationId,
-          db.select({ id: conversations.id }).from(conversations).where(eq(conversations.mailboxId, mailbox.id)),
-        ),
+        eq(conversationMessages.conversationId, conversation.id),
         isNotNull(conversationMessages.reactionType),
         isNotNull(conversationMessages.reactionCreatedAt),
         isNull(conversationMessages.deletedAt),
-        gte(conversationMessages.reactionCreatedAt, earliestMessageTimestamp),
-        before ? lt(conversationMessages.reactionCreatedAt, before) : undefined,
       ),
       orderBy: desc(conversationMessages.reactionCreatedAt),
-      limit: 20,
-    }),
-    db.query.conversationEvents.findMany({
+    });
+
+    // Get most recent human support request
+    const recentHumanRequest = await db.query.conversationEvents.findFirst({
+      columns: { id: true, createdAt: true },
       where: and(
-        inArray(
-          conversationEvents.conversationId,
-          db.select({ id: conversations.id }).from(conversations).where(eq(conversations.mailboxId, mailbox.id)),
-        ),
+        eq(conversationEvents.conversationId, conversation.id),
         eq(conversationEvents.type, "request_human_support"),
-        gte(conversationEvents.createdAt, earliestMessageTimestamp),
-        before ? lt(conversationEvents.createdAt, before) : undefined,
       ),
-      with: {
-        conversation: {
-          columns: { subject: true, emailFrom: true, slug: true },
-          with: {
-            platformCustomer: { columns: { value: true } },
-          },
-        },
-      },
       orderBy: desc(conversationEvents.createdAt),
-      limit: 20,
-    }),
-  ]);
+    });
 
-  const reactionEvents = reactions.map((message) => createReactionEventPayload(message, mailbox));
-  const humanSupportRequestEvents = humanSupportRequests.map((request) =>
-    createHumanSupportRequestEventPayload(request, mailbox),
-  );
+    // Determine which is the most recent activity
+    const activities = [
+      recentMessage ? { type: "message" as const, timestamp: recentMessage.createdAt, data: recentMessage } : null,
+      recentReaction
+        ? { type: "reaction" as const, timestamp: recentReaction.reactionCreatedAt!, data: recentReaction }
+        : null,
+      recentHumanRequest
+        ? { type: "human_request" as const, timestamp: recentHumanRequest.createdAt, data: recentHumanRequest }
+        : null,
+    ].filter(Boolean);
 
-  return [...messageEvents, ...reactionEvents, ...humanSupportRequestEvents].toSorted(
-    (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
-  );
+    if (activities.length === 0) continue;
+
+    // Sort by most recent and take the latest activity
+    activities.sort((a, b) => b!.timestamp.getTime() - a!.timestamp.getTime());
+    const latestActivity = activities[0]!;
+
+    // Create event based on the most recent activity type
+    if (latestActivity.type === "message") {
+      const message = latestActivity.data as typeof recentMessage;
+      // Count total messages in this conversation for context
+      const messageCountResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(conversationMessages)
+        .where(
+          and(
+            eq(conversationMessages.conversationId, conversation.id),
+            isNull(conversationMessages.deletedAt),
+            inArray(conversationMessages.role, ["user", "ai_assistant", "staff"]),
+          ),
+        );
+
+      events.push({
+        ...createMessageEventPayload(
+          { ...message!, conversation: conversationData },
+          mailbox,
+          agentInitiated,
+          agentName,
+        ),
+        messageCount: messageCountResult[0]?.count || 0,
+      });
+    } else if (latestActivity.type === "reaction") {
+      const reaction = latestActivity.data as typeof recentReaction;
+      events.push(
+        createReactionEventPayload(
+          { ...reaction!, conversation: conversationData },
+          mailbox,
+          agentInitiated,
+          agentName,
+        ),
+      );
+    } else if (latestActivity.type === "human_request") {
+      const request = latestActivity.data as typeof recentHumanRequest;
+      events.push(
+        createHumanSupportRequestEventPayload(
+          { ...request!, conversation: conversationData },
+          mailbox,
+          agentInitiated,
+          agentName,
+        ),
+      );
+    }
+  }
+
+  // Sort all events by timestamp and limit to 20
+  return events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 20);
 };

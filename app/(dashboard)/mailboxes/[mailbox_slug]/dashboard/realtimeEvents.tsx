@@ -60,17 +60,17 @@ const RealtimeEvents = ({ mailboxSlug }: { mailboxSlug: string }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {allEvents.map((event) => (
-        <motion.div key={event.id} layout>
+        <motion.div key={event.id} layout className="h-full">
           <Panel
             className={cn(
-              "p-0",
+              "p-0 h-full",
               (event.isVip || event.type === "bad_reply" || event.type === "good_reply") && "dark:border-0",
             )}
           >
             <Link
               href={`/mailboxes/${mailboxSlug}/conversations?id=${event.conversationSlug}`}
               className={cn(
-                "flex flex-col p-5 transition-colors rounded-lg",
+                "flex flex-col p-5 transition-colors rounded-lg h-full",
                 "hover:bg-muted dark:hover:bg-muted",
                 event.isVip && "bg-bright/10 dark:bg-transparent dark:border dark:border-bright/50",
                 event.type === "bad_reply" &&
@@ -79,7 +79,18 @@ const RealtimeEvents = ({ mailboxSlug }: { mailboxSlug: string }) => {
               )}
             >
               <div className="flex gap-3 mb-2 text-muted-foreground items-center min-w-0">
-                <div className="flex-1 text-sm truncate">{event.emailFrom ?? "Anonymous"}</div>
+                <div className="flex-1 text-sm truncate">
+                  {event.agentInitiated && event.agentName ? (
+                    <span className="flex items-center gap-1">
+                      <span className="text-blue-600 dark:text-blue-400">{event.agentName}</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                        Agent
+                      </span>
+                    </span>
+                  ) : (
+                    (event.emailFrom ?? "Anonymous")
+                  )}
+                </div>
                 <div className="flex items-center gap-3 shrink-0">
                   {event.isVip && (
                     <div className="flex items-center gap-1 text-xs">
@@ -103,41 +114,64 @@ const RealtimeEvents = ({ mailboxSlug }: { mailboxSlug: string }) => {
                 </div>
               </div>
 
-              <h3 className="text-lg font-medium truncate">{event.title}</h3>
+              <h3 className="text-lg font-medium truncate mb-auto">{event.title}</h3>
 
-              {event.type === "bad_reply" ? (
-                <div className="mt-6 flex items-center gap-2 text-destructive text-sm">
-                  <ThumbsDown className="w-4 h-4" />
-                  <span className="flex-1 truncate">
-                    Bad reply {event.description ? <>&mdash; {event.description}</> : null}
-                  </span>
-                </div>
-              ) : event.type === "good_reply" ? (
-                <div className="mt-6 flex items-center gap-2 text-success text-sm">
-                  <ThumbsUp className="w-4 h-4" />
-                  Good reply
-                </div>
-              ) : event.type === "email" ? (
-                <div className="mt-6 flex items-center gap-2 text-muted-foreground text-sm">
-                  <Mail className="w-4 h-4" />
-                  <div className="flex-1 truncate">{event.description}</div>
-                </div>
-              ) : event.type === "chat" ? (
-                <div className="mt-6 flex items-center gap-2 text-muted-foreground text-sm">
-                  <MessageSquare className="w-4 h-4" />
-                  <div className="flex-1 truncate">{event.description}</div>
-                </div>
-              ) : event.type === "ai_reply" ? (
-                <div className="mt-6 flex items-center gap-2 text-muted-foreground text-sm">
-                  <BotIcon strokeWidth={1.5} className="w-4 h-4" />
-                  <div className="flex-1 truncate">{event.description}</div>
-                </div>
-              ) : (
-                <div className="mt-6 flex items-center gap-2 text-muted-foreground text-sm">
-                  <Flag className="w-4 h-4 text-bright" />
-                  Human support requested
-                </div>
-              )}
+              <div className="mt-auto">
+                {event.type === "bad_reply" ? (
+                  <div className="mt-6 flex items-center gap-2 text-destructive text-sm">
+                    <ThumbsDown className="w-4 h-4" />
+                    <span className="flex-1 truncate">
+                      Bad reply {event.description ? <>&mdash; {event.description}</> : null}
+                    </span>
+                  </div>
+                ) : event.type === "good_reply" ? (
+                  <div className="mt-6 flex items-center gap-2 text-success text-sm">
+                    <ThumbsUp className="w-4 h-4" />
+                    Good reply
+                  </div>
+                ) : event.type === "email" ? (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Mail className="w-4 h-4" />
+                      <div className="flex-1 truncate">{event.description}</div>
+                    </div>
+                    {event.messageCount && event.messageCount > 1 && (
+                      <div className="text-xs text-muted-foreground">
+                        Part of conversation with {event.messageCount} messages
+                      </div>
+                    )}
+                  </div>
+                ) : event.type === "chat" ? (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <MessageSquare className="w-4 h-4" />
+                      <div className="flex-1 truncate">{event.description}</div>
+                    </div>
+                    {event.messageCount && event.messageCount > 1 && (
+                      <div className="text-xs text-muted-foreground">
+                        Part of conversation with {event.messageCount} messages
+                      </div>
+                    )}
+                  </div>
+                ) : event.type === "ai_reply" ? (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <BotIcon strokeWidth={1.5} className="w-4 h-4" />
+                      <div className="flex-1 truncate">{event.description}</div>
+                    </div>
+                    {event.messageCount && event.messageCount > 1 && (
+                      <div className="text-xs text-muted-foreground">
+                        Part of conversation with {event.messageCount} messages
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-6 flex items-center gap-2 text-muted-foreground text-sm">
+                    <Flag className="w-4 h-4 text-bright" />
+                    Human support requested
+                  </div>
+                )}
+              </div>
             </Link>
           </Panel>
         </motion.div>

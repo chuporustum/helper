@@ -1,6 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversationMessages } from "@/db/schema";
+import { authUsers } from "@/db/supabaseSchema/auth";
+import { getFullName } from "@/lib/auth/authUtils";
 import { serializeMessage } from "@/lib/data/conversationMessage";
 import { createMessageEventPayload } from "@/lib/data/dashboardEvent";
 import { conversationChannelId, conversationsListChannelId, dashboardChannelId } from "@/lib/realtime/channels";
@@ -40,10 +42,37 @@ export const publishNewConversationEvent = async ({ messageId }: { messageId: nu
     published.push("conversation.new");
   }
   if (message) {
+    // Check if this is an agent-initiated conversation for dashboard events
+    let agentInitiated = false;
+    let agentName: string | undefined;
+
+    if (!message.conversation.emailFrom) {
+      // Get the first message to see if it's from an agent
+      const firstMessage = await db.query.conversationMessages.findFirst({
+        columns: { role: true, userId: true },
+        where: and(
+          eq(conversationMessages.conversationId, message.conversation.id),
+          isNull(conversationMessages.deletedAt),
+        ),
+        orderBy: conversationMessages.createdAt,
+      });
+
+      if (firstMessage?.role === "staff" && firstMessage.userId) {
+        agentInitiated = true;
+        // Get the agent's display name
+        const agent = await db.query.authUsers.findFirst({
+          where: eq(authUsers.id, firstMessage.userId),
+        });
+        if (agent) {
+          agentName = getFullName(agent);
+        }
+      }
+    }
+
     await publishToRealtime({
       channel: dashboardChannelId(message.conversation.mailbox.slug),
       event: "event",
-      data: createMessageEventPayload(message, message.conversation.mailbox),
+      data: createMessageEventPayload(message, message.conversation.mailbox, agentInitiated, agentName),
     });
     published.push("realtime.event");
   }
