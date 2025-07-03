@@ -1,16 +1,15 @@
-import { waitUntil } from "@vercel/functions";
-import { and, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 import { authenticateWidget } from "@/app/api/widget/utils";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { assertDefined } from "@/components/utils/assert";
 import { db } from "@/db/client";
 import { conversationMessages, conversations } from "@/db/schema";
-import { authUsers } from "@/db/supabaseSchema/auth";
-import { getFullName } from "@/lib/auth/authUtils";
+import { getAgentInitiationInfo } from "@/lib/data/conversation";
 import { createReactionEventPayload } from "@/lib/data/dashboardEvent";
 import { dashboardChannelId } from "@/lib/realtime/channels";
 import { publishToRealtime } from "@/lib/realtime/publish";
+import { waitUntil } from "@vercel/functions";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 
 const MessageReactionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -135,31 +134,10 @@ const publishEvent = async (messageId: number) => {
   );
 
   // Check if this is an agent-initiated conversation for dashboard events
-  let agentInitiated = false;
-  let agentName: string | undefined;
-
-  if (!message.conversation.emailFrom) {
-    // Get the first message to see if it's from an agent
-    const firstMessage = await db.query.conversationMessages.findFirst({
-      columns: { role: true, userId: true },
-      where: and(
-        eq(conversationMessages.conversationId, message.conversation.id),
-        isNull(conversationMessages.deletedAt),
-      ),
-      orderBy: conversationMessages.createdAt,
-    });
-
-    if (firstMessage?.role === "staff" && firstMessage.userId) {
-      agentInitiated = true;
-      // Get the agent's display name
-      const agent = await db.query.authUsers.findFirst({
-        where: eq(authUsers.id, firstMessage.userId),
-      });
-      if (agent) {
-        agentName = getFullName(agent);
-      }
-    }
-  }
+  const { agentInitiated, agentName } = await getAgentInitiationInfo(
+    message.conversation.id,
+    message.conversation.emailFrom,
+  );
 
   await publishToRealtime({
     channel: dashboardChannelId(message.conversation.mailbox.slug),

@@ -1,10 +1,9 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversationEvents, conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
-import { authUsers } from "@/db/supabaseSchema/auth";
-import { getFullName } from "@/lib/auth/authUtils";
+import { getAgentInitiationInfo } from "@/lib/data/conversation";
 import { Mailbox } from "@/lib/data/mailbox";
 import { determineVipStatus } from "@/lib/data/platformCustomer";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 type DashboardEventPayload = {
   type: "email" | "chat" | "ai_reply" | "human_support_request" | "good_reply" | "bad_reply" | "new_conversation";
@@ -117,8 +116,6 @@ export const getLatestEvents = async (mailbox: Mailbox, before?: Date) => {
 
   if (recentConversations.length === 0) return [];
 
-  const conversationIds = recentConversations.map((c) => c.id);
-
   // Get the most recent activity for each conversation
   const events: DashboardEventPayload[] = [];
 
@@ -132,28 +129,7 @@ export const getLatestEvents = async (mailbox: Mailbox, before?: Date) => {
     };
 
     // Check if this is an agent-initiated conversation
-    let agentInitiated = false;
-    let agentName: string | undefined;
-
-    if (!conversation.emailFrom) {
-      // Get the first message to see if it's from an agent
-      const firstMessage = await db.query.conversationMessages.findFirst({
-        columns: { role: true, userId: true },
-        where: and(eq(conversationMessages.conversationId, conversation.id), isNull(conversationMessages.deletedAt)),
-        orderBy: conversationMessages.createdAt,
-      });
-
-      if (firstMessage?.role === "staff" && firstMessage.userId) {
-        agentInitiated = true;
-        // Get the agent's display name
-        const agent = await db.query.authUsers.findFirst({
-          where: eq(authUsers.id, firstMessage.userId),
-        });
-        if (agent) {
-          agentName = getFullName(agent);
-        }
-      }
-    }
+    const { agentInitiated, agentName } = await getAgentInitiationInfo(conversation.id, conversation.emailFrom);
 
     // Get most recent message (user, staff, ai_assistant - include all message types)
     const recentMessage = await db.query.conversationMessages.findFirst({

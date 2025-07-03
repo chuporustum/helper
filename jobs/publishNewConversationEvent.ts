@@ -1,12 +1,11 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversationMessages } from "@/db/schema";
-import { authUsers } from "@/db/supabaseSchema/auth";
-import { getFullName } from "@/lib/auth/authUtils";
+import { getAgentInitiationInfo } from "@/lib/data/conversation";
 import { serializeMessage } from "@/lib/data/conversationMessage";
 import { createMessageEventPayload } from "@/lib/data/dashboardEvent";
 import { conversationChannelId, conversationsListChannelId, dashboardChannelId } from "@/lib/realtime/channels";
 import { publishToRealtime } from "@/lib/realtime/publish";
+import { eq } from "drizzle-orm";
 
 export const publishNewConversationEvent = async ({ messageId }: { messageId: number }) => {
   const message = await db.query.conversationMessages.findFirst({
@@ -43,31 +42,10 @@ export const publishNewConversationEvent = async ({ messageId }: { messageId: nu
   }
   if (message) {
     // Check if this is an agent-initiated conversation for dashboard events
-    let agentInitiated = false;
-    let agentName: string | undefined;
-
-    if (!message.conversation.emailFrom) {
-      // Get the first message to see if it's from an agent
-      const firstMessage = await db.query.conversationMessages.findFirst({
-        columns: { role: true, userId: true },
-        where: and(
-          eq(conversationMessages.conversationId, message.conversation.id),
-          isNull(conversationMessages.deletedAt),
-        ),
-        orderBy: conversationMessages.createdAt,
-      });
-
-      if (firstMessage?.role === "staff" && firstMessage.userId) {
-        agentInitiated = true;
-        // Get the agent's display name
-        const agent = await db.query.authUsers.findFirst({
-          where: eq(authUsers.id, firstMessage.userId),
-        });
-        if (agent) {
-          agentName = getFullName(agent);
-        }
-      }
-    }
+    const { agentInitiated, agentName } = await getAgentInitiationInfo(
+      message.conversation.id,
+      message.conversation.emailFrom,
+    );
 
     await publishToRealtime({
       channel: dashboardChannelId(message.conversation.mailbox.slug),

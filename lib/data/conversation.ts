@@ -1,18 +1,20 @@
-import "server-only";
-import { type Message } from "ai";
-import { and, asc, desc, eq, inArray, isNull, not, SQLWrapper } from "drizzle-orm";
-import { cache } from "react";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { assertDefined } from "@/components/utils/assert";
 import { db, Transaction } from "@/db/client";
 import { conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
 import { conversationEvents } from "@/db/schema/conversationEvents";
+import { authUsers } from "@/db/supabaseSchema/auth";
 import { triggerEvent } from "@/jobs/trigger";
 import { runAIQuery } from "@/lib/ai";
+import { getFullName } from "@/lib/auth/authUtils";
 import { extractAddresses } from "@/lib/emails";
 import { conversationChannelId, conversationsListChannelId } from "@/lib/realtime/channels";
 import { publishToRealtime } from "@/lib/realtime/publish";
 import { updateVipMessageOnClose } from "@/lib/slack/vipNotifications";
+import { type Message } from "ai";
+import { and, asc, desc, eq, inArray, isNull, not, SQLWrapper } from "drizzle-orm";
+import { cache } from "react";
+import "server-only";
 import { emailKeywordsExtractor } from "../emailKeywordsExtractor";
 import { searchEmailsByKeywords } from "../emailSearchService/searchEmailsByKeywords";
 import { captureExceptionAndLog } from "../shared/sentry";
@@ -386,4 +388,32 @@ export const generateConversationSubject = async (
         ).text;
 
   await db.update(conversations).set({ subject }).where(eq(conversations.id, conversationId));
+};
+
+export const getAgentInitiationInfo = async (
+  conversationId: number,
+  emailFrom: string | null,
+): Promise<{ agentInitiated: boolean; agentName?: string }> => {
+  if (emailFrom) {
+    return { agentInitiated: false };
+  }
+
+  const firstMessage = await db.query.conversationMessages.findFirst({
+    columns: { role: true, userId: true },
+    where: and(eq(conversationMessages.conversationId, conversationId), isNull(conversationMessages.deletedAt)),
+    orderBy: asc(conversationMessages.createdAt),
+  });
+
+  if (firstMessage?.role === "staff" && firstMessage.userId) {
+    const agent = await db.query.authUsers.findFirst({
+      where: eq(authUsers.id, firstMessage.userId),
+    });
+
+    return {
+      agentInitiated: true,
+      agentName: agent ? getFullName(agent) : undefined,
+    };
+  }
+
+  return { agentInitiated: false };
 };
