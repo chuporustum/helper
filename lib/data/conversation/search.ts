@@ -6,11 +6,13 @@ import {
   eq,
   exists,
   gt,
+  gte,
   ilike,
   inArray,
   isNotNull,
   isNull,
   lt,
+  lte,
   or,
   SQL,
   sql,
@@ -93,10 +95,10 @@ export const searchConversations = async (
                   eq(conversationMessages.reactionType, filters.reactionType),
                   isNull(conversationMessages.deletedAt),
                   filters.reactionAfter
-                    ? gt(conversationMessages.reactionCreatedAt, new Date(filters.reactionAfter))
+                    ? gte(conversationMessages.reactionCreatedAt, new Date(filters.reactionAfter))
                     : undefined,
                   filters.reactionBefore
-                    ? lt(conversationMessages.reactionCreatedAt, new Date(filters.reactionBefore))
+                    ? lte(conversationMessages.reactionCreatedAt, new Date(filters.reactionBefore))
                     : undefined,
                 ),
               ),
