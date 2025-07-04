@@ -21,7 +21,6 @@ describe("searchConversations", () => {
         subject: "Conversation with no reactions",
       });
 
-      const baseDate = new Date("2025-01-15T10:00:00Z");
       const reactionDate1 = new Date("2025-01-15T12:00:00Z");
       const reactionDate2 = new Date("2025-01-16T12:00:00Z");
 
