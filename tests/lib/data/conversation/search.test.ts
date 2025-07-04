@@ -1,31 +1,231 @@
-import { readFileSync } from "fs";
-import { join } from "path";
 import { describe, expect, it } from "vitest";
+import { searchConversations } from "@/lib/data/conversation/search";
+import { conversationMessagesFactory } from "@/tests/support/factories/conversationMessages";
+import { conversationFactory } from "@/tests/support/factories/conversations";
+import { userFactory } from "@/tests/support/factories/users";
 
-describe("Date filtering bug fix verification", () => {
-  it("should use inclusive date comparisons (gte/lte) instead of exclusive (gt/lt) for reaction filtering", () => {
-    const searchFilePath = join(process.cwd(), "lib/data/conversation/search.ts");
-    const searchFileContent = readFileSync(searchFilePath, "utf-8");
+describe("searchConversations", () => {
+  describe("reaction filtering", () => {
+    it("should filter conversations by positive reactions within date range", async () => {
+      const { mailbox } = await userFactory.createRootUser();
 
-    expect(searchFileContent).toContain("gte(conversationMessages.reactionCreatedAt");
-    expect(searchFileContent).toContain("lte(conversationMessages.reactionCreatedAt");
+      const { conversation: conversation1 } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with positive reaction",
+      });
 
-    const gteMatches = searchFileContent.match(/gte\(conversationMessages\.reactionCreatedAt/g);
-    const lteMatches = searchFileContent.match(/lte\(conversationMessages\.reactionCreatedAt/g);
-    const gtMatches = searchFileContent.match(/gt\(conversationMessages\.reactionCreatedAt/g);
-    const ltMatches = searchFileContent.match(/lt\(conversationMessages\.reactionCreatedAt/g);
+      const { conversation: conversation2 } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with negative reaction",
+      });
 
-    expect(gteMatches).toHaveLength(1);
-    expect(lteMatches).toHaveLength(1);
-    expect(gtMatches).toBeNull();
-    expect(ltMatches).toBeNull();
-  });
+      const { conversation: conversation3 } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with no reactions",
+      });
 
-  it("should import gte and lte from drizzle-orm", () => {
-    const searchFilePath = join(process.cwd(), "lib/data/conversation/search.ts");
-    const searchFileContent = readFileSync(searchFilePath, "utf-8");
+      const baseDate = new Date("2025-01-15T10:00:00Z");
+      const reactionDate1 = new Date("2025-01-15T12:00:00Z");
+      const reactionDate2 = new Date("2025-01-16T12:00:00Z");
 
-    expect(searchFileContent).toMatch(/import\s*{[^}]*gte[^}]*}\s*from\s*["']drizzle-orm["']/);
-    expect(searchFileContent).toMatch(/import\s*{[^}]*lte[^}]*}\s*from\s*["']drizzle-orm["']/);
+      await conversationMessagesFactory.create(conversation1.id, {
+        role: "ai_assistant",
+        body: "AI response 1",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: reactionDate1,
+      });
+
+      await conversationMessagesFactory.create(conversation2.id, {
+        role: "ai_assistant",
+        body: "AI response 2",
+        reactionType: "thumbs-down",
+        reactionCreatedAt: reactionDate2,
+      });
+
+      await conversationMessagesFactory.create(conversation3.id, {
+        role: "ai_assistant",
+        body: "AI response 3",
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-up",
+        reactionAfter: "2025-01-15T00:00:00Z",
+        reactionBefore: "2025-01-15T23:59:59Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results?.[0]?.id).toBe(conversation1.id);
+      expect(result.results?.[0]?.subject).toBe("Conversation with positive reaction");
+    });
+
+    it("should filter conversations by negative reactions within date range", async () => {
+      const { mailbox } = await userFactory.createRootUser();
+
+      const { conversation: conversation1 } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with positive reaction",
+      });
+
+      const { conversation: conversation2 } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with negative reaction",
+      });
+
+      const reactionDate1 = new Date("2025-01-15T12:00:00Z");
+      const reactionDate2 = new Date("2025-01-16T12:00:00Z");
+
+      await conversationMessagesFactory.create(conversation1.id, {
+        role: "ai_assistant",
+        body: "AI response 1",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: reactionDate1,
+      });
+
+      await conversationMessagesFactory.create(conversation2.id, {
+        role: "ai_assistant",
+        body: "AI response 2",
+        reactionType: "thumbs-down",
+        reactionCreatedAt: reactionDate2,
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-down",
+        reactionAfter: "2025-01-16T00:00:00Z",
+        reactionBefore: "2025-01-16T23:59:59Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results?.[0]?.id).toBe(conversation2.id);
+      expect(result.results?.[0]?.subject).toBe("Conversation with negative reaction");
+    });
+
+    it("should return empty results when no reactions exist in date range", async () => {
+      const { mailbox } = await userFactory.createRootUser();
+
+      const { conversation } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with reaction outside date range",
+      });
+
+      await conversationMessagesFactory.create(conversation.id, {
+        role: "ai_assistant",
+        body: "AI response",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-10T12:00:00Z"),
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-up",
+        reactionAfter: "2025-01-15T00:00:00Z",
+        reactionBefore: "2025-01-15T23:59:59Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+
+      expect(result.results).toHaveLength(0);
+    });
+
+    it("should filter by reactionAfter only", async () => {
+      const { mailbox } = await userFactory.createRootUser();
+
+      const { conversation: conversation1 } = await conversationFactory.create(mailbox.id, {
+        subject: "Old reaction",
+      });
+
+      const { conversation: conversation2 } = await conversationFactory.create(mailbox.id, {
+        subject: "New reaction",
+      });
+
+      await conversationMessagesFactory.create(conversation1.id, {
+        role: "ai_assistant",
+        body: "AI response 1",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-10T12:00:00Z"),
+      });
+
+      await conversationMessagesFactory.create(conversation2.id, {
+        role: "ai_assistant",
+        body: "AI response 2",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-20T12:00:00Z"),
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-up",
+        reactionAfter: "2025-01-15T00:00:00Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+      expect(result.results).toHaveLength(1);
+      expect(result.results?.[0]?.id).toBe(conversation2.id);
+      expect(result.results?.[0]?.subject).toBe("New reaction");
+    });
+
+    it("should filter by reactionBefore only", async () => {
+      const { mailbox } = await userFactory.createRootUser();
+
+      const { conversation: conversation1 } = await conversationFactory.create(mailbox.id, {
+        subject: "Old reaction",
+      });
+
+      const { conversation: conversation2 } = await conversationFactory.create(mailbox.id, {
+        subject: "New reaction",
+      });
+
+      await conversationMessagesFactory.create(conversation1.id, {
+        role: "ai_assistant",
+        body: "AI response 1",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-10T12:00:00Z"),
+      });
+
+      await conversationMessagesFactory.create(conversation2.id, {
+        role: "ai_assistant",
+        body: "AI response 2",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-20T12:00:00Z"),
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-up",
+        reactionBefore: "2025-01-15T00:00:00Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+
+      expect(result.results).toHaveLength(1);
+      expect(result.results?.[0]?.id).toBe(conversation1.id);
+      expect(result.results?.[0]?.subject).toBe("Old reaction");
+    });
+
+    it("should ignore deleted messages when filtering reactions", async () => {
+      const { mailbox } = await userFactory.createRootUser();
+
+      const { conversation } = await conversationFactory.create(mailbox.id, {
+        subject: "Conversation with deleted reaction",
+      });
+
+      await conversationMessagesFactory.create(conversation.id, {
+        role: "ai_assistant",
+        body: "AI response",
+        reactionType: "thumbs-up",
+        reactionCreatedAt: new Date("2025-01-15T12:00:00Z"),
+        deletedAt: new Date("2025-01-15T13:00:00Z"),
+      });
+
+      const search = await searchConversations(mailbox, {
+        reactionType: "thumbs-up",
+        reactionAfter: "2025-01-15T00:00:00Z",
+        reactionBefore: "2025-01-15T23:59:59Z",
+        limit: 10,
+      });
+
+      const result = await search.list;
+
+      expect(result.results).toHaveLength(0);
+    });
   });
 });
