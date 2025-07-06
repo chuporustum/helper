@@ -1,4 +1,5 @@
 import { generateCompletion, GPT_4O_MINI_MODEL } from "@/lib/ai/core";
+import { captureExceptionAndLogIfDevelopment } from "@/lib/shared/sentry";
 
 const TITLE_GENERATION_PROMPT = `You are tasked with generating a concise, categorical title for a group of similar support conversations. 
 
@@ -52,7 +53,7 @@ export const generateIssueGroupTitle = async (embeddingText: string, subject?: s
     // Final fallback
     return "Support Issues";
   } catch (error) {
-    console.error("Error generating issue group title:", error);
+    captureExceptionAndLogIfDevelopment(error);
 
     // Fallback to cleaned subject
     if (subject) {
@@ -110,7 +111,7 @@ export const generateTitleForMultipleConversations = async (
 
     return "Support Issues";
   } catch (error) {
-    console.error("Error generating title for multiple conversations:", error);
+    captureExceptionAndLogIfDevelopment(error);
     return "Support Issues";
   }
 };

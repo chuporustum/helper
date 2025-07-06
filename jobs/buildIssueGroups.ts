@@ -1,5 +1,5 @@
 import { cosineSimilarity } from "ai";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversationIssueGroups } from "@/db/schema/conversationIssueGroups";
 import { conversations } from "@/db/schema/conversations";
@@ -8,17 +8,34 @@ import { publishIssueGroupEvent } from "@/jobs/publishIssueGroupEvent";
 import { generateIssueGroupTitle } from "@/lib/ai/issueGroupTitle";
 import { env } from "@/lib/env";
 
-const SIMILARITY_THRESHOLD = parseFloat(env.ISSUE_GROUPS_SIMILARITY_THRESHOLD || "0.85");
-const BATCH_SIZE = parseInt(env.ISSUE_GROUPS_BATCH_SIZE || "50");
+const SIMILARITY_THRESHOLD = (() => {
+  const parsed = parseFloat(env.ISSUE_GROUPS_SIMILARITY_THRESHOLD || "0.85");
+  if (isNaN(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(
+      `Invalid ISSUE_GROUPS_SIMILARITY_THRESHOLD: ${env.ISSUE_GROUPS_SIMILARITY_THRESHOLD}. Must be a number between 0 and 1.`,
+    );
+  }
+  return parsed;
+})();
+
+const BATCH_SIZE = (() => {
+  const parsed = parseInt(env.ISSUE_GROUPS_BATCH_SIZE || "50", 10);
+  if (isNaN(parsed) || parsed < 1) {
+    throw new Error(`Invalid ISSUE_GROUPS_BATCH_SIZE: ${env.ISSUE_GROUPS_BATCH_SIZE}. Must be a positive integer.`);
+  }
+  return parsed;
+})();
 
 export const buildIssueGroups = async () => {
   // First, check how many conversations are missing embeddings
-  const missingEmbeddingsCount = await db
-    .select({ count: conversations.id })
+  const missingEmbeddingsResult = await db
+    .select({ count: count() })
     .from(conversations)
     .where(and(eq(conversations.status, "open"), isNull(conversations.embedding), isNull(conversations.mergedIntoId)));
 
-  if (missingEmbeddingsCount.length > 0) {
+  const missingEmbeddingsCount = missingEmbeddingsResult[0]?.count ?? 0;
+
+  if (missingEmbeddingsCount > 0) {
     // Found conversations without embeddings
   }
 
@@ -128,6 +145,6 @@ export const buildIssueGroups = async () => {
     success: true,
     processedConversations,
     createdGroups,
-    missingEmbeddings: missingEmbeddingsCount.length,
+    missingEmbeddings: missingEmbeddingsCount,
   };
 };

@@ -15,6 +15,9 @@ import { triggerEvent } from "@/jobs/trigger";
 import { env } from "@/lib/env";
 import { mailboxProcedure } from "./procedure";
 
+// Used as a fallback threshold when no VIP threshold is set
+const NO_VIP_THRESHOLD = 999999;
+
 const checkFeatureEnabled = () => {
   if (!env.COMMON_ISSUES_ENABLED) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Common Issues feature is not enabled" });
@@ -64,7 +67,7 @@ export const issueGroupsRouter = {
               todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday} THEN 1 END)`,
               weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek} THEN 1 END)`,
               monthCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfMonth} THEN 1 END)`,
-              vipCount: sql<number>`COUNT(DISTINCT CASE WHEN ${conversations.status} = 'open' AND (${platformCustomers.value}::numeric / 100) >= COALESCE(${mailboxes.vipThreshold}, 999999) THEN ${conversations.emailFrom} END)`,
+              vipCount: sql<number>`COUNT(DISTINCT CASE WHEN ${conversations.status} = 'open' AND (${platformCustomers.value}::numeric / 100) >= COALESCE(${mailboxes.vipThreshold}, ${NO_VIP_THRESHOLD}) THEN ${conversations.emailFrom} END)`,
             })
             .from(conversationIssueGroups)
             .innerJoin(conversations, eq(conversationIssueGroups.conversationId, conversations.id))
@@ -257,7 +260,10 @@ export const issueGroupsRouter = {
       .select({
         count: count(issueGroups.id),
       })
-      .from(issueGroups);
+      .from(issueGroups)
+      .innerJoin(conversationIssueGroups, eq(issueGroups.id, conversationIssueGroups.issueGroupId))
+      .innerJoin(conversations, eq(conversationIssueGroups.conversationId, conversations.id))
+      .where(eq(conversations.mailboxId, ctx.mailbox.id));
 
     return { count: result[0]?.count ?? 0 };
   }),

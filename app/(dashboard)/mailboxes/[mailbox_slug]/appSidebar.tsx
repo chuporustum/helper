@@ -200,7 +200,7 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                   )}
                 </SidebarMenu>
               </SidebarGroup>
-              
+
               {/* Pinned Issues Section */}
               {!issueGroupsError && pinnedIssues && pinnedIssues.groups.length > 0 && (
                 <SidebarGroup>
@@ -214,15 +214,15 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                     {pinnedIssues.groups.slice(0, 5).map((group) => (
                       <SidebarMenuItem key={group.id}>
                         <SidebarMenuButton asChild tooltip={group.title}>
-                          <Link 
-                            href={`/mailboxes/${mailboxSlug}/all?issueGroupId=${group.id}`} 
+                          <Link
+                            href={`/mailboxes/${mailboxSlug}/all?issueGroupId=${group.id}`}
                             onClick={handleItemClick}
                             className="text-xs"
                           >
                             <Ticket className="size-3" />
                             <span className="group-data-[collapsible=icon]:hidden truncate text-xs leading-tight">
-                              {group.title.replace(/^\d+\s+/, "").length > 25 
-                                ? group.title.replace(/^\d+\s+/, "").substring(0, 25) + "..." 
+                              {group.title.replace(/^\d+\s+/, "").length > 25
+                                ? group.title.replace(/^\d+\s+/, "").substring(0, 25) + "..."
                                 : group.title.replace(/^\d+\s+/, "")}
                             </span>
                           </Link>
@@ -235,7 +235,7 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                   </SidebarMenu>
                 </SidebarGroup>
               )}
-              
+
               <SidebarGroup>
                 <SidebarMenu>
                   <SidebarMenuItem>

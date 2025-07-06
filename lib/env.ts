@@ -108,6 +108,7 @@ export const env = createEnv({
       .transform((v) => v === "true"),
     ISSUE_GROUPS_SIMILARITY_THRESHOLD: z.string().default("0.85"),
     ISSUE_GROUPS_BATCH_SIZE: z.string().default("50"),
+    CLOSED_CONVERSATIONS_BATCH_SIZE: z.string().default("50"),
   },
 
   /**

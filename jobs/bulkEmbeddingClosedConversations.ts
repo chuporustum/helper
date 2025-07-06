@@ -2,10 +2,12 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversations } from "@/db/schema/conversations";
 import { triggerEvent } from "@/jobs/trigger";
+import { env } from "@/lib/env";
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = parseInt(env.CLOSED_CONVERSATIONS_BATCH_SIZE, 10);
 
 export const bulkEmbeddingClosedConversations = async () => {
+  // eslint-disable-next-line no-console
   console.log("Starting bulk embedding for conversations without embeddings...");
 
   let processed = 0;
@@ -34,10 +36,12 @@ export const bulkEmbeddingClosedConversations = async () => {
       .limit(BATCH_SIZE);
 
     if (conversationsBatch.length === 0) {
+      // eslint-disable-next-line no-console
       console.log("No more conversations to process");
       break;
     }
 
+    // eslint-disable-next-line no-console
     console.log(
       `Processing batch of ${conversationsBatch.length} conversations (${conversationsBatch.filter((c) => c.status === "open").length} open, ${conversationsBatch.filter((c) => c.status === "closed").length} closed)...`,
     );
@@ -54,12 +58,14 @@ export const bulkEmbeddingClosedConversations = async () => {
     processed += conversationsBatch.length;
     lastId = conversationsBatch[conversationsBatch.length - 1]?.id ?? lastId;
 
+    // eslint-disable-next-line no-console
     console.log(`Processed ${processed} conversations so far...`);
 
     // Add a small delay to avoid overwhelming the system
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
+  // eslint-disable-next-line no-console
   console.log(`✅ Bulk embedding complete! Processed ${processed} conversations total.`);
   return { success: true, processedConversations: processed };
 };

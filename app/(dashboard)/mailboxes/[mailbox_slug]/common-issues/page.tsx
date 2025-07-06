@@ -1,18 +1,9 @@
 "use client";
 
-import {
-  ArrowUpDown,
-  MoreHorizontal,
-  Pin,
-  PinOff,
-  Search,
-  Share2,
-  Users,
-  X,
-} from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Pin, PinOff, Search, Share2, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ConfirmationDialog } from "@/components/confirmationDialog";
 import { useIsMobile } from "@/components/hooks/use-mobile";
 import { toast } from "@/components/hooks/use-toast";
@@ -142,7 +133,6 @@ export default function CommonIssuesPage() {
     });
   };
 
-
   const handlePinGroup = (groupId: number, cleanTitle: string) => {
     pinMutation.mutate({ mailboxSlug, id: groupId });
   };
@@ -150,7 +140,6 @@ export default function CommonIssuesPage() {
   const handleUnpinGroup = (groupId: number, cleanTitle: string) => {
     unpinMutation.mutate({ mailboxSlug, id: groupId });
   };
-
 
   // Listen for realtime updates
   useRealtimeEventOnce(issueGroupsChannelId(mailboxSlug), "issueGroupUpdated", () => {
@@ -242,7 +231,7 @@ export default function CommonIssuesPage() {
             <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredAndSortedGroups.map((group) => {
-                  const isPinned = pinnedData?.groups.some(p => p.id === group.id) ?? false;
+                  const isPinned = pinnedData?.groups.some((p) => p.id === group.id) ?? false;
 
                   // Use actual open count from the group data
                   const affectedUsers = group.openCount;
@@ -251,7 +240,10 @@ export default function CommonIssuesPage() {
                   const cleanTitle = group.title.replace(/^\d+\s+/, "");
 
                   return (
-                    <Card key={group.id} className={`hover:shadow-md transition-shadow flex flex-col h-full ${isPinned ? 'ring-1 ring-orange-200 bg-orange-50/30' : ''}`}>
+                    <Card
+                      key={group.id}
+                      className={`hover:shadow-md transition-shadow flex flex-col h-full ${isPinned ? "ring-1 ring-orange-200 bg-orange-50/30" : ""}`}
+                    >
                       <CardHeader className="pb-3 flex-1">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -264,9 +256,7 @@ export default function CommonIssuesPage() {
                                   {affectedUsers} {cleanTitle}
                                 </Link>
                               </CardTitle>
-                              {isPinned && (
-                                <Pin className="h-3 w-3 text-orange-600 flex-shrink-0" />
-                              )}
+                              {isPinned && <Pin className="h-3 w-3 text-orange-600 flex-shrink-0" />}
                             </div>
 
                             {/* Always reserve space for description to maintain consistent height */}
@@ -289,13 +279,11 @@ export default function CommonIssuesPage() {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => isPinned ? handleUnpinGroup(group.id, cleanTitle) : handlePinGroup(group.id, cleanTitle)}
+                              onClick={() =>
+                                isPinned ? handleUnpinGroup(group.id, cleanTitle) : handlePinGroup(group.id, cleanTitle)
+                              }
                             >
-                              {isPinned ? (
-                                <PinOff className="h-4 w-4 text-orange-600" />
-                              ) : (
-                                <Pin className="h-4 w-4" />
-                              )}
+                              {isPinned ? <PinOff className="h-4 w-4 text-orange-600" /> : <Pin className="h-4 w-4" />}
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
