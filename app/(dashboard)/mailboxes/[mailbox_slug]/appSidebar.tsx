@@ -4,6 +4,7 @@ import {
   BarChart,
   BookOpen,
   ChevronLeft,
+  GitBranch,
   Inbox,
   Link as LinkIcon,
   MessageSquareText,
@@ -55,7 +56,8 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
   const previousAppUrlRef = useRef<string | null>(null);
   const { data: openCounts } = api.mailbox.openCount.useQuery({ mailboxSlug });
   const { data: mailbox } = api.mailbox.get.useQuery({ mailboxSlug });
-  const { data: issueGroupsCount, error: issueGroupsError } = api.mailbox.issueGroups.openCount.useQuery({
+  // Check if Common Issues feature is available (will error if disabled)
+  const { error: issueGroupsError } = api.mailbox.issueGroups.openCount.useQuery({
     mailboxSlug,
   });
   const { data: pinnedIssues } = api.mailbox.issueGroups.pinnedList.useQuery({
@@ -189,13 +191,10 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                         tooltip="Common issues"
                       >
                         <Link href={`/mailboxes/${mailboxSlug}/common-issues`} onClick={handleItemClick}>
-                          <Users className="size-4" />
+                          <GitBranch className="size-4" />
                           <span className="group-data-[collapsible=icon]:hidden">Common issues</span>
                         </Link>
                       </SidebarMenuButton>
-                      {issueGroupsCount && issueGroupsCount.count > 0 && (
-                        <SidebarMenuBadge>{issueGroupsCount.count}</SidebarMenuBadge>
-                      )}
                     </SidebarMenuItem>
                   )}
                 </SidebarMenu>
@@ -222,7 +221,7 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                             <Ticket className="size-3" />
                             <span className="group-data-[collapsible=icon]:hidden truncate text-xs leading-tight">
                               {group.title.replace(/^\d+\s+/, "").length > 25
-                                ? group.title.replace(/^\d+\s+/, "").substring(0, 25) + "..."
+                                ? `${group.title.replace(/^\d+\s+/, "").substring(0, 25)}...`
                                 : group.title.replace(/^\d+\s+/, "")}
                             </span>
                           </Link>

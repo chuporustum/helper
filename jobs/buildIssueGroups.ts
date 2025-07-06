@@ -4,7 +4,6 @@ import { db } from "@/db/client";
 import { conversationIssueGroups } from "@/db/schema/conversationIssueGroups";
 import { conversations } from "@/db/schema/conversations";
 import { issueGroups } from "@/db/schema/issueGroups";
-import { publishIssueGroupEvent } from "@/jobs/publishIssueGroupEvent";
 import { generateIssueGroupTitle } from "@/lib/ai/issueGroupTitle";
 import { env } from "@/lib/env";
 
@@ -27,6 +26,8 @@ const BATCH_SIZE = (() => {
 })();
 
 export const buildIssueGroups = async () => {
+  // NOTE: This job loads all existing issue groups into memory for similarity comparison.
+  // Consider pagination or partitioning if the number of groups grows significantly (>1000).
   // First, check how many conversations are missing embeddings
   const missingEmbeddingsResult = await db
     .select({ count: count() })
@@ -134,12 +135,6 @@ export const buildIssueGroups = async () => {
 
     processedConversations++;
   }
-
-  // Publish event for real-time updates
-  await publishIssueGroupEvent({
-    type: "groups_updated",
-    data: { processedConversations, createdGroups },
-  });
 
   return {
     success: true,

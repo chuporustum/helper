@@ -11,6 +11,7 @@ import {
   platformCustomers,
   userPinnedIssueGroups,
 } from "@/db/schema";
+import { publishIssueGroupEvent } from "@/jobs/publishIssueGroupEvent";
 import { triggerEvent } from "@/jobs/trigger";
 import { env } from "@/lib/env";
 import { mailboxProcedure } from "./procedure";
@@ -43,67 +44,62 @@ export const issueGroupsRouter = {
       startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // First get basic issue groups
-      const baseGroups = await db
+      // Get issue groups with conversation counts in a single query
+      const groupsWithCounts = await db
         .select({
           id: issueGroups.id,
           title: issueGroups.title,
           description: issueGroups.description,
           createdAt: issueGroups.createdAt,
           updatedAt: issueGroups.updatedAt,
+          totalCount: count(conversations.id),
+          openCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' THEN 1 END)`,
+          todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday} THEN 1 END)`,
+          weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek} THEN 1 END)`,
+          monthCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfMonth} THEN 1 END)`,
+          vipCount: sql<number>`COUNT(DISTINCT CASE WHEN ${conversations.status} = 'open' AND (${platformCustomers.value}::numeric / 100) >= COALESCE(${mailboxes.vipThreshold}, ${NO_VIP_THRESHOLD}) THEN ${conversations.emailFrom} END)`,
         })
         .from(issueGroups)
+        .leftJoin(conversationIssueGroups, eq(issueGroups.id, conversationIssueGroups.issueGroupId))
+        .leftJoin(
+          conversations,
+          and(
+            eq(conversationIssueGroups.conversationId, conversations.id),
+            eq(conversations.mailboxId, ctx.mailbox.id),
+          ),
+        )
+        .leftJoin(mailboxes, eq(conversations.mailboxId, mailboxes.id))
+        .leftJoin(
+          platformCustomers,
+          and(
+            eq(platformCustomers.email, conversations.emailFrom),
+            eq(platformCustomers.mailboxId, conversations.mailboxId),
+          ),
+        )
+        .groupBy(
+          issueGroups.id,
+          issueGroups.title,
+          issueGroups.description,
+          issueGroups.createdAt,
+          issueGroups.updatedAt,
+        )
         .orderBy(desc(issueGroups.updatedAt))
         .limit(limit)
         .offset(offset);
 
-      // For each group, get conversation counts
-      const groups = await Promise.all(
-        baseGroups.map(async (group) => {
-          const conversationCounts = await db
-            .select({
-              totalCount: count(conversations.id),
-              openCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' THEN 1 END)`,
-              todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday} THEN 1 END)`,
-              weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek} THEN 1 END)`,
-              monthCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfMonth} THEN 1 END)`,
-              vipCount: sql<number>`COUNT(DISTINCT CASE WHEN ${conversations.status} = 'open' AND (${platformCustomers.value}::numeric / 100) >= COALESCE(${mailboxes.vipThreshold}, ${NO_VIP_THRESHOLD}) THEN ${conversations.emailFrom} END)`,
-            })
-            .from(conversationIssueGroups)
-            .innerJoin(conversations, eq(conversationIssueGroups.conversationId, conversations.id))
-            .leftJoin(mailboxes, eq(conversations.mailboxId, mailboxes.id))
-            .leftJoin(
-              platformCustomers,
-              and(
-                eq(platformCustomers.email, conversations.emailFrom),
-                eq(platformCustomers.mailboxId, conversations.mailboxId),
-              ),
-            )
-            .where(
-              and(eq(conversationIssueGroups.issueGroupId, group.id), eq(conversations.mailboxId, ctx.mailbox.id)),
-            );
+      const groups = groupsWithCounts.map((group) => ({
+        ...group,
+        openCount: Number(group.openCount || 0),
+        todayCount: Number(group.todayCount || 0),
+        weekCount: Number(group.weekCount || 0),
+        monthCount: Number(group.monthCount || 0),
+        vipCount: Number(group.vipCount || 0),
+      }));
 
-          const counts = conversationCounts[0] || {
-            totalCount: 0,
-            openCount: 0,
-            todayCount: 0,
-            weekCount: 0,
-            monthCount: 0,
-            vipCount: 0,
-          };
+      // Filter out groups with 0 open conversations
+      const activeGroups = groups.filter((group) => group.openCount > 0);
 
-          return {
-            ...group,
-            openCount: Number(counts.openCount || 0),
-            todayCount: Number(counts.todayCount || 0),
-            weekCount: Number(counts.weekCount || 0),
-            monthCount: Number(counts.monthCount || 0),
-            vipCount: Number(counts.vipCount || 0),
-          };
-        }),
-      );
-
-      return { groups };
+      return { groups: activeGroups };
     }),
 
   get: mailboxProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
@@ -158,12 +154,47 @@ export const issueGroupsRouter = {
       }
 
       const [sourceGroup, targetGroup] = await Promise.all([
-        db.query.issueGroups.findFirst({ where: eq(issueGroups.id, sourceId) }),
-        db.query.issueGroups.findFirst({ where: eq(issueGroups.id, targetId) }),
+        db.query.issueGroups.findFirst({
+          where: eq(issueGroups.id, sourceId),
+          with: {
+            conversationIssueGroups: {
+              with: {
+                conversation: {
+                  columns: { mailboxId: true },
+                },
+              },
+              limit: 1,
+            },
+          },
+        }),
+        db.query.issueGroups.findFirst({
+          where: eq(issueGroups.id, targetId),
+          with: {
+            conversationIssueGroups: {
+              with: {
+                conversation: {
+                  columns: { mailboxId: true },
+                },
+              },
+              limit: 1,
+            },
+          },
+        }),
       ]);
 
       if (!sourceGroup || !targetGroup) {
         throw new TRPCError({ code: "NOT_FOUND", message: "One or both issue groups not found" });
+      }
+
+      // Validate that both groups belong to the requesting mailbox
+      const sourceMailboxId = sourceGroup.conversationIssueGroups[0]?.conversation?.mailboxId;
+      const targetMailboxId = targetGroup.conversationIssueGroups[0]?.conversation?.mailboxId;
+
+      if (sourceMailboxId !== ctx.mailbox.id || targetMailboxId !== ctx.mailbox.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot merge issue groups that don't belong to this mailbox",
+        });
       }
 
       await db.transaction(async (tx) => {
@@ -192,10 +223,29 @@ export const issueGroupsRouter = {
 
       const group = await db.query.issueGroups.findFirst({
         where: eq(issueGroups.id, id),
+        with: {
+          conversationIssueGroups: {
+            with: {
+              conversation: {
+                columns: { mailboxId: true },
+              },
+            },
+            limit: 1,
+          },
+        },
       });
 
       if (!group) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Issue group not found" });
+      }
+
+      // Validate that the group belongs to the requesting mailbox
+      const groupMailboxId = group.conversationIssueGroups[0]?.conversation?.mailboxId;
+      if (groupMailboxId !== ctx.mailbox.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot rename issue group that doesn't belong to this mailbox",
+        });
       }
 
       const updatedGroup = await db
@@ -251,6 +301,12 @@ export const issueGroupsRouter = {
       status: "closed",
     });
 
+    // Trigger real-time update for issue groups
+    await publishIssueGroupEvent({
+      issueGroupId: input.id,
+      eventType: "updated",
+    });
+
     return { updatedCount: conversationIds.length };
   }),
 
@@ -296,7 +352,10 @@ export const issueGroupsRouter = {
       .orderBy(desc(userPinnedIssueGroups.createdAt))
       .limit(10);
 
-    return { groups: pinnedGroups };
+    // Filter out pinned groups with 0 open conversations
+    const activePinnedGroups = pinnedGroups.filter((group) => group.openCount > 0);
+
+    return { groups: activePinnedGroups };
   }),
 
   pin: mailboxProcedure

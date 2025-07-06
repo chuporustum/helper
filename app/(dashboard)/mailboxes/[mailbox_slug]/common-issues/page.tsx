@@ -133,11 +133,11 @@ export default function CommonIssuesPage() {
     });
   };
 
-  const handlePinGroup = (groupId: number, cleanTitle: string) => {
+  const handlePinGroup = (groupId: number, _cleanTitle: string) => {
     pinMutation.mutate({ mailboxSlug, id: groupId });
   };
 
-  const handleUnpinGroup = (groupId: number, cleanTitle: string) => {
+  const handleUnpinGroup = (groupId: number, _cleanTitle: string) => {
     unpinMutation.mutate({ mailboxSlug, id: groupId });
   };
 
@@ -256,7 +256,6 @@ export default function CommonIssuesPage() {
                                   {affectedUsers} {cleanTitle}
                                 </Link>
                               </CardTitle>
-                              {isPinned && <Pin className="h-3 w-3 text-orange-600 flex-shrink-0" />}
                             </div>
 
                             {/* Always reserve space for description to maintain consistent height */}
@@ -374,7 +373,7 @@ export default function CommonIssuesPage() {
                 })}
               </div>
 
-              {data?.groups && data.groups.length === limit && !searchQuery && (
+              {data?.groups?.length === limit && !searchQuery && (
                 <div className="flex justify-center mt-6">
                   <Button onClick={() => setPage(page + 1)} variant="outlined">
                     Load more
