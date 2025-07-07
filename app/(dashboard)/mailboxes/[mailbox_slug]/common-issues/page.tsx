@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, MoreHorizontal, Pin, PinOff, Search, Share2, Users, X } from "lucide-react";
+import { ArrowUpDown, Calendar, MoreHorizontal, Pin, PinOff, Search, Share2, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -327,26 +327,39 @@ export default function CommonIssuesPage() {
                                   : "bg-orange-50 text-orange-700 border-orange-200"; // Medium/low volume
 
                               return (
-                                <Badge variant="gray" className={`${badgeClass} text-xs`}>
-                                  📅 {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
+                                <Badge variant="gray" className={`${badgeClass} text-xs flex items-center gap-1`}>
+                                  <Calendar className="h-3 w-3" />
+                                  {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
                                 </Badge>
                               );
                             } else if (weekCount > 0) {
                               return (
-                                <Badge variant="gray" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  📅 {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
+                                <Badge
+                                  variant="gray"
+                                  className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
+                                >
+                                  <Calendar className="h-3 w-3" />
+                                  {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
                                 </Badge>
                               );
                             } else if (monthCount > 0) {
                               return (
-                                <Badge variant="gray" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                  📅 {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
+                                <Badge
+                                  variant="gray"
+                                  className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
+                                >
+                                  <Calendar className="h-3 w-3" />
+                                  {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
                                 </Badge>
                               );
                             }
                             return (
-                              <Badge variant="gray" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
-                                📅 No new tickets
+                              <Badge
+                                variant="gray"
+                                className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
+                              >
+                                <Calendar className="h-3 w-3" />
+                                No new tickets
                               </Badge>
                             );
                           })()}
