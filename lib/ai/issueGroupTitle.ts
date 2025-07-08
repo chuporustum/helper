@@ -1,29 +1,35 @@
 import { generateCompletion, GPT_4O_MINI_MODEL } from "@/lib/ai/core";
 import { captureExceptionAndLogIfDevelopment } from "@/lib/shared/sentry";
 
-const TITLE_GENERATION_PROMPT = `You are tasked with generating a concise, categorical title for a group of similar support conversations. 
+const TITLE_GENERATION_PROMPT = `You are generating a title for a group of SIMILAR, SPECIFIC issues that support agents will handle together.
 
-Given the structured summary below, create a title that:
-1. Describes the general category/type of issue (not specific details)
-2. Is 2-6 words long
-3. Uses clear, user-friendly language
-4. Represents what multiple similar conversations would be about
-5. Avoids technical jargon when possible
+CRITICAL: Create SPECIFIC, ACTIONABLE titles that describe the EXACT problem - not general categories.
 
-Examples of good titles:
-- "Login & Authentication Issues"
-- "Payment Processing Problems" 
-- "File Download Issues"
-- "Account Access Problems"
-- "Subscription & Billing Questions"
-- "Video Playback Issues"
-- "API & Integration Help"
+The title should:
+1. Describe the SPECIFIC problem that all conversations share
+2. Be action-oriented and specific enough for bulk handling
+3. Be 3-8 words long
+4. Include specific symptoms, errors, or actions when relevant
 
-Examples of bad titles:
-- "Re: Can't login to my account" (too specific)
-- "Customer experiencing difficulties" (too vague)
-- "Technical support request" (too generic)
-- "User reported bug in system functionality" (too technical)
+Examples of GOOD specific titles:
+- "Cannot receive 2FA SMS codes"
+- "Password reset email not arriving"
+- "Credit card declined error 402"
+- "PDF downloads failing in Chrome"
+- "Subscription auto-renewal failing silently"
+- "Video stops playing after 30 seconds"
+- "Cannot access account after migration"
+- "Refund not appearing after 7 days"
+
+Examples of BAD generic titles:
+- "Login Issues" (too broad)
+- "Payment Problems" (too vague)
+- "Account Access" (not specific)
+- "Technical Difficulties" (meaningless)
+- "Customer Support Request" (too generic)
+- "Billing and Account Issues" (combines multiple problems)
+
+The summary will contain a "Problem:" line - use this as the basis for your title, making it slightly more descriptive if needed.
 
 Return ONLY the title, nothing else.`;
 
