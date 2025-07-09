@@ -100,15 +100,6 @@ export const env = createEnv({
       .string()
       .default("support@gumroad.com")
       .transform((v) => v.split(",")),
-
-    // Feature flags
-    COMMON_ISSUES_ENABLED: z
-      .string()
-      .default("true")
-      .transform((v) => v === "true"),
-    ISSUE_GROUPS_SIMILARITY_THRESHOLD: z.string().default("0.92"),
-    ISSUE_GROUPS_BATCH_SIZE: z.string().default("50"),
-    CLOSED_CONVERSATIONS_BATCH_SIZE: z.string().default("50"),
   },
 
   /**

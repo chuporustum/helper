@@ -1,5 +1,5 @@
 import { TRPCError, TRPCRouterRecord } from "@trpc/server";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { db } from "@/db/client";
@@ -9,14 +9,7 @@ import { triggerEvent } from "@/jobs/trigger";
 import { env } from "@/lib/env";
 import { mailboxProcedure } from "./procedure";
 
-// Used as a fallback threshold when no VIP threshold is set
-const NO_VIP_THRESHOLD = 999999;
-
-const checkFeatureEnabled = () => {
-  if (!env.COMMON_ISSUES_ENABLED) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Common Issues feature is not enabled" });
-  }
-};
+// Remove feature flag check - manual issue groups are always enabled
 
 export const issueGroupsRouter = {
   // List all issue groups for a mailbox with conversation counts
@@ -28,7 +21,6 @@ export const issueGroupsRouter = {
       }),
     )
     .query(async ({ ctx, input }) => {
-      checkFeatureEnabled();
       const { limit, offset } = input;
 
       // Get current date boundaries for time-based counting
@@ -47,22 +39,16 @@ export const issueGroupsRouter = {
           createdAt: issueGroups.createdAt,
           updatedAt: issueGroups.updatedAt,
           totalCount: count(conversations.id),
-          openCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' THEN 1 END)`,
-          todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday} THEN 1 END)`,
-          weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek} THEN 1 END)`,
-          monthCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfMonth} THEN 1 END)`,
-          vipCount: sql<number>`COUNT(DISTINCT CASE WHEN ${conversations.status} = 'open' AND (${platformCustomers.value}::numeric / 100) >= COALESCE(${mailboxes.vipThreshold}, ${NO_VIP_THRESHOLD}) THEN ${conversations.emailFrom} END)`,
+          openCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' THEN 1 END)::int`,
+          todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday}::timestamp THEN 1 END)::int`,
+          weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek}::timestamp THEN 1 END)::int`,
+          monthCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfMonth}::timestamp THEN 1 END)::int`,
+          vipCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${platformCustomers.value} >= COALESCE(${mailboxes.vipThreshold}, 999999) * 100 THEN 1 END)::int`,
         })
         .from(issueGroups)
         .leftJoin(conversations, eq(issueGroups.id, conversations.issueGroupId))
-        .leftJoin(mailboxes, eq(conversations.mailboxId, mailboxes.id))
-        .leftJoin(
-          platformCustomers,
-          and(
-            eq(platformCustomers.email, conversations.emailFrom),
-            eq(platformCustomers.mailboxId, conversations.mailboxId),
-          ),
-        )
+        .leftJoin(platformCustomers, eq(conversations.emailFrom, platformCustomers.email))
+        .leftJoin(mailboxes, eq(issueGroups.mailboxId, mailboxes.id))
         .where(eq(issueGroups.mailboxId, ctx.mailbox.id))
         .groupBy(
           issueGroups.id,
@@ -92,8 +78,6 @@ export const issueGroupsRouter = {
 
   // Get all issue groups for settings (including those with 0 conversations)
   listAll: mailboxProcedure.query(async ({ ctx }) => {
-    checkFeatureEnabled();
-
     const groups = await db
       .select({
         id: issueGroups.id,
@@ -114,8 +98,6 @@ export const issueGroupsRouter = {
 
   // Get a specific issue group
   get: mailboxProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
-    checkFeatureEnabled();
-
     const group = await db.query.issueGroups.findFirst({
       where: and(eq(issueGroups.id, input.id), eq(issueGroups.mailboxId, ctx.mailbox.id)),
       with: {
@@ -149,8 +131,6 @@ export const issueGroupsRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      checkFeatureEnabled();
-
       const newGroup = await db
         .insert(issueGroups)
         .values({
@@ -176,7 +156,6 @@ export const issueGroupsRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      checkFeatureEnabled();
       const { id, title, description } = input;
 
       // Verify ownership
@@ -204,8 +183,6 @@ export const issueGroupsRouter = {
 
   // Delete an issue group
   delete: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    checkFeatureEnabled();
-
     // Verify ownership and get conversation count
     const group = await db.query.issueGroups.findFirst({
       where: and(eq(issueGroups.id, input.id), eq(issueGroups.mailboxId, ctx.mailbox.id)),
@@ -240,11 +217,9 @@ export const issueGroupsRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      checkFeatureEnabled();
-
       // Verify conversation belongs to this mailbox
       const conversation = await db.query.conversations.findFirst({
-        where: and(eq(conversations.id, input.conversationId), eq(conversations.mailboxId, ctx.mailbox.id)),
+        where: and(eq(conversations.id, input.conversationId), eq(conversations.unused_mailboxId, ctx.mailbox.id)),
       });
 
       if (!conversation) {
@@ -268,13 +243,14 @@ export const issueGroupsRouter = {
         .set({ issueGroupId: input.issueGroupId })
         .where(eq(conversations.id, input.conversationId));
 
+      // Trigger realtime update for issue groups
+      await triggerEvent("issue-groups/status-changed", { conversationId: input.conversationId });
+
       return { success: true };
     }),
 
   // Bulk close all conversations in an issue group
   bulkCloseAll: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    checkFeatureEnabled();
-
     // Verify group belongs to this mailbox
     const group = await db.query.issueGroups.findFirst({
       where: and(eq(issueGroups.id, input.id), eq(issueGroups.mailboxId, ctx.mailbox.id)),
@@ -316,13 +292,27 @@ export const issueGroupsRouter = {
 
   // Get pinned issue groups for current user
   pinnedList: mailboxProcedure.query(async ({ ctx }) => {
-    checkFeatureEnabled();
-
     const userProfile = await db.query.userProfiles.findFirst({
       where: eq(userProfiles.id, ctx.user.id),
     });
 
     if (!userProfile?.pinnedIssueGroupIds || userProfile.pinnedIssueGroupIds.length === 0) {
+      return { groups: [] };
+    }
+
+    // Convert to array of numbers if it's a string
+    let pinnedIds: number[];
+    if (Array.isArray(userProfile.pinnedIssueGroupIds)) {
+      pinnedIds = userProfile.pinnedIssueGroupIds.map((id) => (typeof id === "string" ? parseInt(id, 10) : id));
+    } else if (typeof userProfile.pinnedIssueGroupIds === "string") {
+      try {
+        pinnedIds = JSON.parse(userProfile.pinnedIssueGroupIds);
+      } catch (_error) {
+        // Return empty array if parsing fails
+        return { groups: [] };
+      }
+    } else {
+      // Return empty array if the data type is unexpected
       return { groups: [] };
     }
 
@@ -335,12 +325,7 @@ export const issueGroupsRouter = {
       })
       .from(issueGroups)
       .leftJoin(conversations, and(eq(issueGroups.id, conversations.issueGroupId), eq(conversations.status, "open")))
-      .where(
-        and(
-          eq(issueGroups.mailboxId, ctx.mailbox.id),
-          sql`${issueGroups.id} = ANY(${userProfile.pinnedIssueGroupIds})`,
-        ),
-      )
+      .where(and(eq(issueGroups.mailboxId, ctx.mailbox.id), inArray(issueGroups.id, pinnedIds)))
       .groupBy(issueGroups.id)
       .orderBy(desc(issueGroups.createdAt))
       .limit(10);
@@ -353,8 +338,6 @@ export const issueGroupsRouter = {
 
   // Pin an issue group for current user
   pin: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    checkFeatureEnabled();
-
     // Verify issue group exists and belongs to this mailbox
     const group = await db.query.issueGroups.findFirst({
       where: and(eq(issueGroups.id, input.id), eq(issueGroups.mailboxId, ctx.mailbox.id)),
@@ -386,8 +369,6 @@ export const issueGroupsRouter = {
 
   // Unpin an issue group for current user
   unpin: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    checkFeatureEnabled();
-
     // Get current user profile
     const userProfile = await db.query.userProfiles.findFirst({
       where: eq(userProfiles.id, ctx.user.id),

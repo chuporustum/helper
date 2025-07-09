@@ -39,7 +39,7 @@ export const conversations = pgTable(
     assignedToAI: boolean().notNull().default(false),
     mergedIntoId: bigint({ mode: "number" }),
     anonymousSessionId: text(),
-    issueGroupId: bigint({ mode: "number" }),
+    issueGroupId: bigint("issue_group_id", { mode: "number" }),
     suggestedActions: jsonb().$type<
       (
         | { type: "close" | "spam" }

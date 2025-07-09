@@ -7,42 +7,27 @@ import { conversations } from "@/db/schema/conversations";
 import { generateCompletion, generateEmbedding } from "@/lib/ai";
 import { cleanUpTextForAI, GPT_4O_MINI_MODEL } from "@/lib/ai/core";
 
-const SYSTEM_PROMPT = `You will be given a support conversation between a customer and a support agent. Your task is to extract the SPECIFIC problem and create a summary for clustering similar issues.
+const SYSTEM_PROMPT = `You will be given a support conversation between a customer and a support agent. Your task is to summarize this conversation while removing any sensitive or personally identifiable information. 
+Format in a way that it can be used as source of information for future conversations. PRIORITIZE concrete, actionable details over general conversation flow.
 
-CRITICAL: Focus on the EXACT, SPECIFIC problem - not general categories.
+Follow these steps to create the summary:
 
-Good examples of specific problems:
-- "Cannot receive 2FA SMS code"
-- "Credit card declined with error 402"
-- "Video playback freezes after 30 seconds"
-- "Cannot download PDF receipts"
-- "Subscription renewal failed silently"
-
-Bad examples (too general):
-- "Login issues"
-- "Payment problems"
-- "Technical difficulties"
-- "Account access"
-
-Follow these steps:
-
-1. Identify the SPECIFIC problem or error the customer reported
-2. Extract any error messages, codes, or specific symptoms
-3. Note the exact action the user was trying to perform
-4. Capture the specific resolution or workaround provided
-5. Remove PII but keep technical details and error specifics
+1. Extract specific details: product names, purchase information, account details, transaction data
+2. Identify the main question or issue the customer was experiencing
+3. Determine the solution or resolution provided by the support agent
+4. Remove any specific names, email addresses, amounts, phone numbers, account numbers, or other personally identifiable information
 
 Your response should include:
-1. Problem: The EXACT issue in 5-10 words (e.g., "Cannot receive password reset email")
-2. Details: Specific symptoms, error codes, or technical details
-3. Solution: The specific fix or workaround provided
-4. Action: What needs to be done to resolve this
+1. Summary: Focus on concrete details and specific actions taken, not general conversation flow
+2. Agent Action: If the agent acted to fix the issue other than giving instructions
+3. User Action: If the problem was or can be solved by a user action
+4. Sample Answer: A template response that could be used for similar cases
 
 Format your response as:
-Problem: [Specific issue in 5-10 words]
-Details: [Technical details and symptoms]
-Solution: [Specific resolution]
-Action: [Required action to fix]`;
+Summary: [Your summary here focusing on concrete details]
+Agent Action: [Action taken by agent, if any]
+User Action: [Action needed from user, if any]
+Sample Answer: [Template response]`;
 
 const GPT_4O_MINI_CONTEXT_WINDOW_MAX_TOKENS = 128000;
 

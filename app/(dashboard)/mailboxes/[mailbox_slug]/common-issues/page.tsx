@@ -4,9 +4,9 @@ import { ArrowUpDown, Calendar, MoreHorizontal, Pin, PinOff, Search, Share2, Use
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/confirmationDialog";
 import { useIsMobile } from "@/components/hooks/use-mobile";
-import { toast } from "@/components/hooks/use-toast";
 import { PageHeader } from "@/components/pageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,35 +44,21 @@ export default function CommonIssuesPage() {
 
   const pinMutation = api.mailbox.issueGroups.pin.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Pinned",
-        description: "Issue group added to sidebar",
-      });
+      toast.success("Issue group added to sidebar");
       refetchPinned();
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 
   const unpinMutation = api.mailbox.issueGroups.unpin.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Unpinned",
-        description: "Issue group removed from sidebar",
-      });
+      toast.success("Issue group removed from sidebar");
       refetchPinned();
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 
@@ -86,9 +72,7 @@ export default function CommonIssuesPage() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (group) =>
-          group.title.toLowerCase().includes(query) ||
-          (group.description && group.description.toLowerCase().includes(query)),
+        (group) => group.title.toLowerCase().includes(query) || group.description?.toLowerCase().includes(query),
       );
     }
 
@@ -105,32 +89,22 @@ export default function CommonIssuesPage() {
 
   const bulkCloseAllMutation = api.mailbox.issueGroups.bulkCloseAll.useMutation({
     onSuccess: (result) => {
-      toast({
-        title: "Success",
-        description: `Closed ${result.updatedCount} conversations`,
-      });
+      toast.success(`Closed ${result.updatedCount} conversations`);
       refetch();
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 
-  const handleBulkCloseAll = (groupId: number, cleanTitle: string, openCount: number) => {
+  const handleBulkCloseAll = (groupId: number) => {
     bulkCloseAllMutation.mutate({ mailboxSlug, id: groupId });
   };
 
-  const handleShareGroup = (groupId: number, cleanTitle: string) => {
+  const handleShareGroup = (groupId: number) => {
     const url = `${window.location.origin}/mailboxes/${mailboxSlug}/all?issueGroupId=${groupId}`;
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Link copied",
-      description: "Issue group link copied to clipboard",
-    });
+    toast.success("Issue group link copied to clipboard");
   };
 
   const handlePinGroup = (groupId: number, _cleanTitle: string) => {
@@ -270,7 +244,7 @@ export default function CommonIssuesPage() {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => handleShareGroup(group.id, cleanTitle)}
+                              onClick={() => handleShareGroup(group.id)}
                             >
                               <Share2 className="h-4 w-4" />
                             </Button>
@@ -293,7 +267,7 @@ export default function CommonIssuesPage() {
                               <DropdownMenuContent align="end">
                                 <ConfirmationDialog
                                   message={`Are you sure you want to close all ${group.openCount} conversation${group.openCount !== 1 ? "s" : ""} in "${cleanTitle}"?`}
-                                  onConfirm={() => handleBulkCloseAll(group.id, cleanTitle, group.openCount)}
+                                  onConfirm={() => handleBulkCloseAll(group.id)}
                                   confirmLabel="Yes, close all"
                                   confirmVariant="bright"
                                 >

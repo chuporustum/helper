@@ -9,7 +9,7 @@ export const issueGroups = pgTable(
   {
     ...withTimestamps,
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity(),
-    mailboxId: bigint({ mode: "number" }).notNull(),
+    mailboxId: bigint("mailbox_id", { mode: "number" }).notNull(),
     title: text().notNull(),
     description: text(),
   },

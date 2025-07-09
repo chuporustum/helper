@@ -1,71 +1,52 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, gt, gte, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversations } from "@/db/schema/conversations";
 import { triggerEvent } from "@/jobs/trigger";
-import { env } from "@/lib/env";
 
-const BATCH_SIZE = parseInt(env.CLOSED_CONVERSATIONS_BATCH_SIZE, 10);
+const BATCH_SIZE = 50;
+const CLOSED_STATUS = "closed";
+const MAX_CONVERSATIONS = 5000;
 
 export const bulkEmbeddingClosedConversations = async () => {
-  // eslint-disable-next-line no-console
-  console.log("Starting bulk embedding for conversations without embeddings...");
-
-  let processed = 0;
   let lastId = 0;
+  let processedConversations = 0;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  while (true) {
-    // Get next batch of conversations without embeddings (both closed and open)
+  while (processedConversations < MAX_CONVERSATIONS) {
     const conversationsBatch = await db
       .select({
         id: conversations.id,
         slug: conversations.slug,
-        status: conversations.status,
       })
       .from(conversations)
       .where(
         and(
-          or(
-            eq(conversations.status, "closed"),
-            eq(conversations.status, "open"), // Now also process open conversations
-          ),
+          eq(conversations.status, CLOSED_STATUS),
           isNull(conversations.embedding),
-          isNull(conversations.mergedIntoId),
+          gt(conversations.id, lastId),
+          gte(conversations.closedAt, thirtyDaysAgo),
         ),
       )
       .orderBy(conversations.id)
       .limit(BATCH_SIZE);
 
-    if (conversationsBatch.length === 0) {
-      // eslint-disable-next-line no-console
-      console.log("No more conversations to process");
+    if (!conversationsBatch || conversationsBatch.length === 0) {
       break;
     }
 
-    // eslint-disable-next-line no-console
-    console.log(
-      `Processing batch of ${conversationsBatch.length} conversations (${conversationsBatch.filter((c) => c.status === "open").length} open, ${conversationsBatch.filter((c) => c.status === "closed").length} closed)...`,
-    );
-
-    // Trigger embedding creation for each conversation
-    const events = conversationsBatch.map((conversation) =>
-      triggerEvent("conversations/embedding.create", {
-        conversationSlug: conversation.slug,
+    const events = conversationsBatch.map(
+      (conversation): { name: "conversations/embedding.create"; data: { conversationSlug: string } } => ({
+        name: "conversations/embedding.create",
+        data: { conversationSlug: conversation.slug },
       }),
     );
 
-    await Promise.all(events);
+    await Promise.all(events.map((event) => triggerEvent(event.name, event.data)));
 
-    processed += conversationsBatch.length;
+    processedConversations += conversationsBatch.length;
     lastId = conversationsBatch[conversationsBatch.length - 1]?.id ?? lastId;
-
-    // eslint-disable-next-line no-console
-    console.log(`Processed ${processed} conversations so far...`);
-
-    // Add a small delay to avoid overwhelming the system
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`✅ Bulk embedding complete! Processed ${processed} conversations total.`);
-  return { success: true, processedConversations: processed };
+  return { success: true, processedConversations };
 };

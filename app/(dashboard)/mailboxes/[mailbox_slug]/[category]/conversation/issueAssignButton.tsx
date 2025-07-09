@@ -2,37 +2,29 @@
 
 import { GitBranch, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "@/components/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import { useConversationContext } from "./conversationContext";
 
 export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId: number | null }) => {
   const { mailboxSlug, conversationSlug, data: conversationInfo } = useConversationContext();
   const [selectedIssueId, setSelectedIssueId] = useState<string>(
-    initialIssueGroupId ? initialIssueGroupId.toString() : "",
+    initialIssueGroupId ? initialIssueGroupId.toString() : "none",
   );
 
-  const { data: issueGroups } = api.mailbox.issueGroups.list.useQuery({ mailboxSlug });
+  const { data: issueGroups } = api.mailbox.issueGroups.listAll.useQuery({ mailboxSlug });
   const utils = api.useUtils();
 
   const assignMutation = api.mailbox.issueGroups.assignConversation.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Issue assignment updated successfully",
-      });
+      toast.success("Issue assignment updated successfully");
       // Refresh conversation data
       utils.mailbox.conversations.get.invalidate({ mailboxSlug, conversationSlug });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     },
   });
 
@@ -41,7 +33,7 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   const handleAssign = (issueGroupId: string) => {
     setSelectedIssueId(issueGroupId);
 
-    const issueId = issueGroupId === "" ? null : parseInt(issueGroupId);
+    const issueId = issueGroupId === "none" ? null : parseInt(issueGroupId);
 
     if (conversationInfo?.id) {
       assignMutation.mutate({
@@ -53,7 +45,7 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   };
 
   const handleClear = () => {
-    setSelectedIssueId("");
+    setSelectedIssueId("none");
     if (conversationInfo?.id) {
       assignMutation.mutate({
         mailboxSlug,
@@ -70,24 +62,21 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   return (
     <div className="flex items-center gap-2 min-w-0">
       <Select value={selectedIssueId} onValueChange={handleAssign}>
-        <SelectTrigger className="w-full h-8 text-sm">
-          <div className="flex items-center gap-1 min-w-0">
-            <GitBranch className="h-4 w-4 flex-shrink-0" />
-            <SelectValue placeholder="Assign to issue..." className="truncate" />
+        <SelectTrigger className="w-full h-8 text-sm min-w-0">
+          <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+            <GitBranch className="h-3 w-3 flex-shrink-0" />
+            <SelectValue placeholder="Assign to issue..." className="truncate min-w-0" />
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">
-            <span className="text-muted-foreground">No issue assigned</span>
+          <SelectItem value="none">
+            <span className="text-muted-foreground text-sm">No issue assigned</span>
           </SelectItem>
           {issueGroups.groups.map((group) => (
             <SelectItem key={group.id} value={group.id.toString()}>
-              <div className="flex flex-col">
-                <span className="truncate">{group.title}</span>
-                {group.description && (
-                  <span className="text-xs text-muted-foreground truncate">{group.description}</span>
-                )}
-              </div>
+              <span className="text-sm truncate block max-w-[200px]" title={group.title}>
+                {group.title}
+              </span>
             </SelectItem>
           ))}
         </SelectContent>
