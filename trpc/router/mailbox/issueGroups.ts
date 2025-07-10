@@ -4,12 +4,8 @@ import { z } from "zod";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { db } from "@/db/client";
 import { conversations, issueGroups, mailboxes, platformCustomers, userProfiles } from "@/db/schema";
-import { publishIssueGroupEvent } from "@/jobs/publishIssueGroupEvent";
 import { triggerEvent } from "@/jobs/trigger";
-import { env } from "@/lib/env";
 import { mailboxProcedure } from "./procedure";
-
-// Remove feature flag check - manual issue groups are always enabled
 
 export const issueGroupsRouter = {
   // List all issue groups for a mailbox with conversation counts
@@ -281,12 +277,6 @@ export const issueGroupsRouter = {
       status: "closed",
     });
 
-    // Trigger real-time update for issue groups
-    await publishIssueGroupEvent({
-      issueGroupId: input.id,
-      eventType: "updated",
-    });
-
     return { updatedCount: openConversationIds.length };
   }),
 
@@ -296,23 +286,14 @@ export const issueGroupsRouter = {
       where: eq(userProfiles.id, ctx.user.id),
     });
 
-    if (!userProfile?.pinnedIssueGroupIds || userProfile.pinnedIssueGroupIds.length === 0) {
+    if (!userProfile?.pinnedIssueGroupIds || !Array.isArray(userProfile.pinnedIssueGroupIds) || userProfile.pinnedIssueGroupIds.length === 0) {
       return { groups: [] };
     }
 
-    // Convert to array of numbers if it's a string
-    let pinnedIds: number[];
-    if (Array.isArray(userProfile.pinnedIssueGroupIds)) {
-      pinnedIds = userProfile.pinnedIssueGroupIds.map((id) => (typeof id === "string" ? parseInt(id, 10) : id));
-    } else if (typeof userProfile.pinnedIssueGroupIds === "string") {
-      try {
-        pinnedIds = JSON.parse(userProfile.pinnedIssueGroupIds);
-      } catch (_error) {
-        // Return empty array if parsing fails
-        return { groups: [] };
-      }
-    } else {
-      // Return empty array if the data type is unexpected
+    // Ensure all IDs are numbers
+    const pinnedIds = userProfile.pinnedIssueGroupIds.map((id) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((id) => !isNaN(id));
+
+    if (pinnedIds.length === 0) {
       return { groups: [] };
     }
 
@@ -352,7 +333,7 @@ export const issueGroupsRouter = {
       where: eq(userProfiles.id, ctx.user.id),
     });
 
-    const currentPinned = userProfile?.pinnedIssueGroupIds || [];
+    const currentPinned = Array.isArray(userProfile?.pinnedIssueGroupIds) ? userProfile.pinnedIssueGroupIds : [];
 
     // Add to pinned if not already there
     if (!currentPinned.includes(input.id)) {
@@ -374,7 +355,7 @@ export const issueGroupsRouter = {
       where: eq(userProfiles.id, ctx.user.id),
     });
 
-    const currentPinned = userProfile?.pinnedIssueGroupIds || [];
+    const currentPinned = Array.isArray(userProfile?.pinnedIssueGroupIds) ? userProfile.pinnedIssueGroupIds : [];
 
     // Remove from pinned
     const updatedPinned = currentPinned.filter((id) => id !== input.id);
