@@ -134,6 +134,11 @@ export const updateConversation = async (
 
     await triggerEvent("conversations/embedding.create", { conversationSlug: updatedConversation.slug });
   }
+
+  // Trigger issue group updates when conversation status changes
+  if (current.status !== updatedConversation.status) {
+    await triggerEvent("issue-groups/status-changed", { conversationId: updatedConversation.id });
+  }
   if (updatedConversation && !skipRealtimeEvents) {
     const publishEvents = async () => {
       try {

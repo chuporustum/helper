@@ -8,6 +8,7 @@ import {
   Link as LinkIcon,
   MessageSquareText,
   MonitorSmartphone,
+  Pin,
   Settings as SettingsIcon,
   Ticket,
   User,
@@ -54,6 +55,12 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
   const previousAppUrlRef = useRef<string | null>(null);
   const { data: openCounts } = api.mailbox.openCount.useQuery({ mailboxSlug });
   const { data: mailbox } = api.mailbox.get.useQuery({ mailboxSlug });
+  const { data: issueGroupsCount, error: issueGroupsError } = api.mailbox.issueGroups.openCount.useQuery({
+    mailboxSlug,
+  });
+  const { data: pinnedIssues } = api.mailbox.issueGroups.pinnedList.useQuery({
+    mailboxSlug,
+  });
   const isSettingsPage = pathname.startsWith(`/mailboxes/${mailboxSlug}/settings`);
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -174,8 +181,61 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
                       <SidebarMenuBadge>{openCounts.conversations}</SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>
+                  {!issueGroupsError && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === `/mailboxes/${mailboxSlug}/common-issues`}
+                        tooltip="Common issues"
+                      >
+                        <Link href={`/mailboxes/${mailboxSlug}/common-issues`} onClick={handleItemClick}>
+                          <Users className="size-4" />
+                          <span className="group-data-[collapsible=icon]:hidden">Common issues</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      {issueGroupsCount && issueGroupsCount.count > 0 && (
+                        <SidebarMenuBadge>{issueGroupsCount.count}</SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroup>
+              
+              {/* Pinned Issues Section */}
+              {!issueGroupsError && pinnedIssues && pinnedIssues.groups.length > 0 && (
+                <SidebarGroup>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton className="text-xs font-medium text-muted-foreground pointer-events-none">
+                        <Pin className="size-3" />
+                        <span className="group-data-[collapsible=icon]:hidden">Pinned Issues</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {pinnedIssues.groups.slice(0, 5).map((group) => (
+                      <SidebarMenuItem key={group.id}>
+                        <SidebarMenuButton asChild tooltip={group.title}>
+                          <Link 
+                            href={`/mailboxes/${mailboxSlug}/all?issueGroupId=${group.id}`} 
+                            onClick={handleItemClick}
+                            className="text-xs"
+                          >
+                            <Ticket className="size-3" />
+                            <span className="group-data-[collapsible=icon]:hidden truncate text-xs leading-tight">
+                              {group.title.replace(/^\d+\s+/, "").length > 25 
+                                ? group.title.replace(/^\d+\s+/, "").substring(0, 25) + "..." 
+                                : group.title.replace(/^\d+\s+/, "")}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {group.openCount > 0 && (
+                          <SidebarMenuBadge className="text-xs">{group.openCount}</SidebarMenuBadge>
+                        )}
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroup>
+              )}
+              
               <SidebarGroup>
                 <SidebarMenu>
                   <SidebarMenuItem>

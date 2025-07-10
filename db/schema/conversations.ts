@@ -5,6 +5,7 @@ import { encryptedField } from "../lib/encryptedField";
 import { randomSlugField } from "../lib/random-slug-field";
 import { withTimestamps } from "../lib/with-timestamps";
 import { conversationEvents } from "./conversationEvents";
+import { conversationIssueGroups } from "./conversationIssueGroups";
 import { conversationMessages } from "./conversationMessages";
 import { platformCustomers } from "./platformCustomers";
 
@@ -89,4 +90,5 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
   mergedConversations: many(conversations, {
     relationName: "mergedConversations",
   }),
+  issueGroups: many(conversationIssueGroups),
 }));

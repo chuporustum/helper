@@ -1,35 +1,25 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { conversations } from "@/db/schema/conversations";
 import { triggerEvent } from "@/jobs/trigger";
 
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 10; // Process in small batches to avoid overwhelming the system
 
-export const bulkEmbeddingClosedConversations = async () => {
-  console.log("Starting bulk embedding for conversations without embeddings...");
+export const backfillOpenConversationEmbeddings = async () => {
+  console.log("Starting backfill of embeddings for open conversations...");
 
   let processed = 0;
   let lastId = 0;
 
   while (true) {
-    // Get next batch of conversations without embeddings (both closed and open)
+    // Get next batch of open conversations without embeddings
     const conversationsBatch = await db
       .select({
         id: conversations.id,
         slug: conversations.slug,
-        status: conversations.status,
       })
       .from(conversations)
-      .where(
-        and(
-          or(
-            eq(conversations.status, "closed"),
-            eq(conversations.status, "open"), // Now also process open conversations
-          ),
-          isNull(conversations.embedding),
-          isNull(conversations.mergedIntoId),
-        ),
-      )
+      .where(and(eq(conversations.status, "open"), isNull(conversations.embedding), isNull(conversations.mergedIntoId)))
       .orderBy(conversations.id)
       .limit(BATCH_SIZE);
 
@@ -38,9 +28,7 @@ export const bulkEmbeddingClosedConversations = async () => {
       break;
     }
 
-    console.log(
-      `Processing batch of ${conversationsBatch.length} conversations (${conversationsBatch.filter((c) => c.status === "open").length} open, ${conversationsBatch.filter((c) => c.status === "closed").length} closed)...`,
-    );
+    console.log(`Processing batch of ${conversationsBatch.length} conversations...`);
 
     // Trigger embedding creation for each conversation
     const events = conversationsBatch.map((conversation) =>
@@ -60,6 +48,19 @@ export const bulkEmbeddingClosedConversations = async () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  console.log(`✅ Bulk embedding complete! Processed ${processed} conversations total.`);
+  console.log(`✅ Backfill complete! Processed ${processed} conversations total.`);
   return { success: true, processedConversations: processed };
 };
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  backfillOpenConversationEmbeddings()
+    .then((result) => {
+      console.log("Result:", result);
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+      process.exit(1);
+    });
+}

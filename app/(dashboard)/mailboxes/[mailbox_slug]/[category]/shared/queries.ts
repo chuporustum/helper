@@ -1,5 +1,5 @@
 import { useParams } from "next/navigation";
-import { parseAsArrayOf, parseAsBoolean, parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
+import { parseAsArrayOf, parseAsBoolean, parseAsInteger, parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
 
 export const useConversationsListInput = () => {
   const params = useParams<{
@@ -19,6 +19,7 @@ export const useConversationsListInput = () => {
     isPrompt: parseAsBoolean,
     reactionType: parseAsStringEnum(["thumbs-up", "thumbs-down"] as const),
     events: parseAsArrayOf(parseAsStringEnum(["request_human_support", "resolved_by_ai"] as const)),
+    issueGroupId: parseAsInteger,
   });
 
   const input = {
@@ -36,6 +37,7 @@ export const useConversationsListInput = () => {
     isPrompt: searchParams.isPrompt ?? undefined,
     reactionType: searchParams.reactionType ?? undefined,
     events: searchParams.events ?? undefined,
+    issueGroupId: searchParams.issueGroupId ?? undefined,
   };
 
   return { input, searchParams, setSearchParams };
