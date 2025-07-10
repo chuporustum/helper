@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Link, MonitorSmartphone, Settings as SettingsIcon, UserPlus, Users } from "lucide-react";
+import { BookOpen, GitBranch, Link, MonitorSmartphone, Settings as SettingsIcon, UserPlus, Users } from "lucide-react";
 import { useParams } from "next/navigation";
 import Loading from "@/app/(dashboard)/loading";
 import { FileUploadProvider } from "@/components/fileUploadContext";
@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { useDocumentTitle } from "@/components/useDocumentTitle";
 import { api } from "@/trpc/react";
 import ChatWidgetSetting from "../chat/chatWidgetSetting";
+import CommonIssuesSetting from "../common-issues/commonIssuesSetting";
 import AutoCloseSetting from "../customers/autoCloseSetting";
 import CustomerSetting from "../customers/customerSetting";
 import ConnectSupportEmail from "../integrations/connectSupportEmail";
@@ -40,6 +41,12 @@ export default function TabsPage() {
       id: "team",
       icon: Users,
       content: <TeamSetting mailboxSlug={mailbox.slug} />,
+    },
+    {
+      label: "Common Issues",
+      id: "common-issues",
+      icon: GitBranch,
+      content: <CommonIssuesSetting mailboxSlug={mailbox.slug} />,
     },
     {
       label: "Customers",

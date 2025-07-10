@@ -20,14 +20,7 @@ import {
 import { memoize } from "lodash-es";
 import { db } from "@/db/client";
 import { decryptFieldValue } from "@/db/lib/encryptedField";
-import {
-  conversationEvents,
-  conversationIssueGroups,
-  conversationMessages,
-  conversations,
-  mailboxes,
-  platformCustomers,
-} from "@/db/schema";
+import { conversationEvents, conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
 import { serializeConversation } from "@/lib/data/conversation";
 import { searchSchema } from "@/lib/data/conversation/searchSchema";
 import { getMetadataApiByMailbox } from "@/lib/data/mailboxMetadataApi";
@@ -121,17 +114,7 @@ export const searchConversations = async (
       : {}),
     ...(filters.issueGroupId
       ? {
-          issueGroup: exists(
-            db
-              .select()
-              .from(conversationIssueGroups)
-              .where(
-                and(
-                  eq(conversationIssueGroups.conversationId, conversations.id),
-                  eq(conversationIssueGroups.issueGroupId, filters.issueGroupId),
-                ),
-              ),
-          ),
+          issueGroup: eq(conversations.issueGroupId, filters.issueGroupId),
         }
       : {}),
   };

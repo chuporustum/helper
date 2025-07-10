@@ -201,6 +201,7 @@ export const serializeConversation = (
     lastUserEmailCreatedAt: conversation.lastUserEmailCreatedAt,
     assignedToId: conversation.assignedToId,
     assignedToAI: conversation.assignedToAI,
+    issueGroupId: conversation.issueGroupId,
     platformCustomer: platformCustomer
       ? {
           ...platformCustomer,

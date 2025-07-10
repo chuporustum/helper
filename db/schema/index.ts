@@ -21,5 +21,3 @@ export * from "./jobRuns";
 export * from "./userProfiles";
 export * from "./savedReplies";
 export * from "./issueGroups";
-export * from "./conversationIssueGroups";
-export * from "./userPinnedIssueGroups";

@@ -1,6 +1,6 @@
 import { autoAssignConversation } from "./autoAssignConversation";
 import { closeInactiveConversations, closeInactiveConversationsForMailbox } from "./autoCloseInactiveConversations";
-import { buildIssueGroups } from "./buildIssueGroups";
+import buildIssueGroups from "./buildIssueGroups";
 import { bulkEmbeddingClosedConversations } from "./bulkEmbeddingClosedConversations";
 import { bulkUpdateConversations } from "./bulkUpdateConversations";
 import { checkAssignedTicketResponseTimes } from "./checkAssignedTicketResponseTimes";

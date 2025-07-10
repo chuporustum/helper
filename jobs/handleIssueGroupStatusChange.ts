@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { conversationIssueGroups } from "@/db/schema";
+import { conversations } from "@/db/schema";
 import { env } from "@/lib/env";
 import { publishIssueGroupEvent } from "./publishIssueGroupEvent";
 
@@ -10,19 +10,17 @@ export const handleIssueGroupStatusChange = async ({ conversationId }: { convers
     return;
   }
 
-  // Find all issue groups this conversation belongs to
-  const issueGroupRelations = await db.query.conversationIssueGroups.findMany({
-    where: eq(conversationIssueGroups.conversationId, conversationId),
+  // Find the issue group this conversation belongs to (direct relationship)
+  const conversation = await db.query.conversations.findFirst({
+    where: eq(conversations.id, conversationId),
     columns: { issueGroupId: true },
   });
 
-  // Publish update events for all affected issue groups
-  await Promise.all(
-    issueGroupRelations.map((relation) =>
-      publishIssueGroupEvent({
-        issueGroupId: relation.issueGroupId,
-        eventType: "updated",
-      }),
-    ),
-  );
+  // If conversation is assigned to an issue group, publish update event
+  if (conversation?.issueGroupId) {
+    await publishIssueGroupEvent({
+      issueGroupId: conversation.issueGroupId,
+      eventType: "updated",
+    });
+  }
 };

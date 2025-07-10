@@ -44,6 +44,7 @@ declare global {
 const settingsItems = [
   { label: "Knowledge", id: "knowledge", icon: BookOpen },
   { label: "Team", id: "team", icon: Users },
+  { label: "Common Issues", id: "common-issues", icon: GitBranch },
   { label: "Customers", id: "customers", icon: UserPlus },
   { label: "In-App Chat", id: "in-app-chat", icon: MonitorSmartphone },
   { label: "Integrations", id: "integrations", icon: LinkIcon },
@@ -56,11 +57,8 @@ export function AppSidebar({ mailboxSlug }: { mailboxSlug: string }) {
   const previousAppUrlRef = useRef<string | null>(null);
   const { data: openCounts } = api.mailbox.openCount.useQuery({ mailboxSlug });
   const { data: mailbox } = api.mailbox.get.useQuery({ mailboxSlug });
-  // Check if Common Issues feature is available (will error if disabled)
-  const { error: issueGroupsError } = api.mailbox.issueGroups.openCount.useQuery({
-    mailboxSlug,
-  });
-  const { data: pinnedIssues } = api.mailbox.issueGroups.pinnedList.useQuery({
+  // Check if Common Issues feature is available
+  const { data: pinnedIssues, error: issueGroupsError } = api.mailbox.issueGroups.pinnedList.useQuery({
     mailboxSlug,
   });
   const isSettingsPage = pathname.startsWith(`/mailboxes/${mailboxSlug}/settings`);
