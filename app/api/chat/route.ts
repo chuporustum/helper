@@ -58,17 +58,20 @@ export const POST = withWidgetAuth(async ({ request }, { session, mailbox }) => 
 
   // Validate attachments
   for (const attachment of attachments) {
-    if (!attachment.url.startsWith("data:image/")) {
-      return corsResponse({ error: "Only image attachments sent via data URL are supported" }, { status: 400 });
+    if (!attachment.url.startsWith("data:image/") || !attachment.url.includes(",")) {
+      return corsResponse({ error: "Only valid image data URLs are supported" }, { status: 400 });
     }
   }
 
   // Convert attachments to the format expected by createUserMessage
   const attachmentData = attachments.map((attachment) => {
     const [, base64Data] = attachment.url.split(",");
+    if (!base64Data) {
+      throw new Error("Invalid data URL format - missing base64 data");
+    }
     return {
-      name: attachment.name,
-      contentType: attachment.contentType,
+      name: attachment.name || "unknown.png",
+      contentType: attachment.contentType || "image/png",
       data: base64Data,
     };
   });

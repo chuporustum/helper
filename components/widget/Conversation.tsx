@@ -270,17 +270,23 @@ export default function Conversation({
         // Add file attachments if provided
         if (attachments && attachments.length > 0) {
           for (const file of attachments) {
-            const reader = new FileReader();
-            const dataUrl = await new Promise<string>((resolve) => {
-              reader.onload = () => resolve(reader.result as string);
-              reader.readAsDataURL(file);
-            });
+            try {
+              const reader = new FileReader();
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+                reader.readAsDataURL(file);
+              });
 
-            attachmentsToSend.push({
-              name: file.name,
-              contentType: file.type,
-              url: dataUrl,
-            });
+              attachmentsToSend.push({
+                name: file.name,
+                contentType: file.type,
+                url: dataUrl,
+              });
+            } catch (error) {
+              captureExceptionAndLog(error);
+              // Continue with other files, skip the failed one
+            }
           }
         }
 
