@@ -24,6 +24,7 @@ const events = {
       "publishNewConversationEvent",
       "notifyVipMessage",
       "buildIssueGroups",
+      "categorizeConversationToIssueGroup",
     ],
   },
   "conversations/email.enqueued": {
