@@ -293,14 +293,8 @@ export const issueGroupsRouter = {
       return { groups: [] };
     }
 
-    // Ensure all IDs are numbers
-    const pinnedIds = userProfile.pinnedIssueGroupIds
-      .map((id) => (typeof id === "string" ? parseInt(id, 10) : id))
-      .filter((id) => !isNaN(id));
-
-    if (pinnedIds.length === 0) {
-      return { groups: [] };
-    }
+    // pinnedIssueGroupIds is properly typed as number[] in the schema
+    const pinnedIds = userProfile.pinnedIssueGroupIds;
 
     const pinnedGroups = await db
       .select({
