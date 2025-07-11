@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Calendar, MoreHorizontal, Pin, PinOff, Search, Share2, Users, X } from "lucide-react";
+import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, MoreHorizontal, Search, Share, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -39,7 +39,7 @@ export default function CommonIssuesPage() {
 
   const pinMutation = api.mailbox.issueGroups.pin.useMutation({
     onSuccess: () => {
-      toast.success("Issue group added to sidebar");
+      toast.success("Issue group bookmarked");
       refetchPinned();
     },
     onError: (error) => {
@@ -49,7 +49,7 @@ export default function CommonIssuesPage() {
 
   const unpinMutation = api.mailbox.issueGroups.unpin.useMutation({
     onSuccess: () => {
-      toast.success("Issue group removed from sidebar");
+      toast.success("Issue group unbookmarked");
       refetchPinned();
     },
     onError: (error) => {
@@ -134,41 +134,49 @@ export default function CommonIssuesPage() {
       {isMobile && <PageHeader title="Common Issues" variant="mahogany" />}
 
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
-          {/* Header with title and controls */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">Common Issues</h1>
-              <p className="text-muted-foreground">Groups of conversations about similar topics</p>
-            </div>
-            {/* Search bar centered */}
-            <div className="flex justify-center">
-              <div className="relative w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder={`Search ${data?.groups.length || 0} issues`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Header section */}
+        <div className="border-b border-gray-200 bg-white">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              {/* Left side: Title and description */}
+              <div className="flex-1">
+                <h1 className="text-2xl font-semibold">Common Issues</h1>
+              </div>
+
+              {/* Center: Search Bar */}
+              <div className="flex-1 flex justify-center px-8">
+                <div className="relative w-full max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder={`Search ${data?.groups.length || 0} issues`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Right side: Sort control */}
+              <div className="flex-1 flex justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="gap-2">
+                      <ArrowUpDown className="h-4 w-4" />
+                      {sortBy === "frequency" ? "Frequency" : "Recent"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setSortBy("frequency")}>Sort by Frequency</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortBy("recent")}>Sort by Recent</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-
-            {/* Sort control in top right */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outlined" className="gap-2">
-                  <ArrowUpDown className="h-4 w-4" />
-                  {sortBy === "frequency" ? "Frequency" : "Recent"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSortBy("frequency")}>Sort by Frequency</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("recent")}>Sort by Recent</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
+        </div>
 
+        {/* Main content area */}
+        <div className="p-4 pl-6 space-y-4">
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -198,8 +206,8 @@ export default function CommonIssuesPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredAndSortedGroups.map((group) => {
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                {filteredAndSortedGroups.map((group, index) => {
                   const isPinned = pinnedData?.groups.some((p) => p.id === group.id) ?? false;
 
                   // Use actual open count from the group data
@@ -209,148 +217,162 @@ export default function CommonIssuesPage() {
                   const cleanTitle = group.title.replace(/^\d+\s+/, "");
 
                   return (
-                    <Card
+                    <div
                       key={group.id}
-                      className={`hover:shadow-md transition-shadow flex flex-col h-full ${isPinned ? "ring-1 ring-orange-200 bg-orange-50/30" : ""}`}
+                      className="group relative cursor-pointer"
+                      style={{
+                        perspective: "1200px",
+                        transformStyle: "preserve-3d",
+                      }}
                     >
-                      <CardHeader className="pb-3 flex-1">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CardTitle className="text-lg line-clamp-2 flex-1">
-                                <Link
-                                  href={`/all?issueGroupId=${group.id}`}
-                                  className="hover:underline"
-                                >
-                                  {affectedUsers} {cleanTitle}
-                                </Link>
-                              </CardTitle>
-                            </div>
+                      {/* Background deck layers - 4 layers for rich effect */}
+                      <div className="absolute inset-0 transform rotate-1 translate-x-2 translate-y-3 opacity-40 group-hover:opacity-70 transition-all duration-500 ease-out group-hover:rotate-3 group-hover:translate-x-4 group-hover:translate-y-4 group-hover:scale-95">
+                        <Card className="h-full border-2 border-slate-300 shadow-lg bg-slate-100 backdrop-blur-sm" />
+                      </div>
+                      <div className="absolute inset-0 transform -rotate-0.5 translate-x-1.5 translate-y-2 opacity-50 group-hover:opacity-80 transition-all duration-400 ease-out group-hover:-rotate-2 group-hover:translate-x-3 group-hover:translate-y-3 group-hover:scale-97">
+                        <Card className="h-full border-2 border-slate-200 shadow-md bg-slate-50 backdrop-blur-sm" />
+                      </div>
+                      <div className="absolute inset-0 transform rotate-0.5 translate-x-1 translate-y-1 opacity-60 group-hover:opacity-90 transition-all duration-300 ease-out group-hover:rotate-1 group-hover:translate-x-2 group-hover:translate-y-2 group-hover:scale-98">
+                        <Card className="h-full border border-gray-300 shadow-md bg-gray-50 backdrop-blur-sm" />
+                      </div>
 
-                            {/* Always reserve space for description to maintain consistent height */}
-                            <div className="h-10 mb-2">
-                              {group.description && (
-                                <CardDescription className="line-clamp-2 text-sm">{group.description}</CardDescription>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleShareGroup(group.id)}
-                            >
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() =>
-                                isPinned ? handleUnpinGroup(group.id, cleanTitle) : handlePinGroup(group.id, cleanTitle)
-                              }
-                            >
-                              {isPinned ? <PinOff className="h-4 w-4 text-orange-600" /> : <Pin className="h-4 w-4" />}
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <ConfirmationDialog
-                                  message={`Are you sure you want to close all ${group.openCount} conversation${group.openCount !== 1 ? "s" : ""} in "${cleanTitle}"?`}
-                                  onConfirm={() => handleBulkCloseAll(group.id)}
-                                  confirmLabel="Yes, close all"
-                                  confirmVariant="bright"
-                                >
-                                  <DropdownMenuItem
-                                    disabled={group.openCount === 0 || bulkCloseAllMutation.isPending}
-                                    onSelect={(e) => e.preventDefault()}
+                      {/* Main card */}
+                      <Card className="relative z-20 transition-all duration-300 ease-out flex flex-col h-full border-2 border-gray-300 shadow-xl bg-white group-hover:transform group-hover:-translate-y-4 group-hover:shadow-2xl group-hover:scale-105 group-hover:border-blue-400">
+                        <CardHeader className="pb-3 flex-1">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CardTitle className="text-lg font-bold line-clamp-2 flex-1">
+                                  <Link
+                                    href={`/all?issueGroupId=${group.id}`}
+                                    className="hover:underline text-gray-900"
                                   >
-                                    <X className="mr-2 h-4 w-4" />
-                                    Close all ({group.openCount})
-                                  </DropdownMenuItem>
-                                </ConfirmationDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0 mt-auto">
-                        {/* Time-based and VIP badges like Figma */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {(() => {
-                            // Ensure numeric values
-                            const todayCount = Number(group.todayCount ?? 0);
-                            const weekCount = Number(group.weekCount ?? 0);
-                            const monthCount = Number(group.monthCount ?? 0);
+                                    {affectedUsers} {cleanTitle}
+                                  </Link>
+                                </CardTitle>
+                              </div>
 
-                            // Priority: today → week → month (like Figma design)
-                            if (todayCount > 0) {
-                              const badgeClass =
-                                todayCount >= 10
-                                  ? "bg-red-50 text-red-700 border-red-200" // High volume
-                                  : "bg-orange-50 text-orange-700 border-orange-200"; // Medium/low volume
-
-                              return (
-                                <Badge variant="gray" className={`${badgeClass} text-xs flex items-center gap-1`}>
-                                  <Calendar className="h-3 w-3" />
-                                  {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
-                                </Badge>
-                              );
-                            } else if (weekCount > 0) {
-                              return (
-                                <Badge
-                                  variant="gray"
-                                  className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
-                                >
-                                  <Calendar className="h-3 w-3" />
-                                  {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
-                                </Badge>
-                              );
-                            } else if (monthCount > 0) {
-                              return (
-                                <Badge
-                                  variant="gray"
-                                  className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
-                                >
-                                  <Calendar className="h-3 w-3" />
-                                  {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
-                                </Badge>
-                              );
-                            }
-                            return (
-                              <Badge
-                                variant="gray"
-                                className="bg-gray-50 text-gray-700 border-gray-200 text-xs flex items-center gap-1"
+                              {/* Always reserve space for description to maintain consistent height */}
+                              <div className="h-10 mb-2">
+                                {group.description && (
+                                  <CardDescription className="line-clamp-2 text-sm">
+                                    {group.description}
+                                  </CardDescription>
+                                )}
+                              </div>
+                            </div>
+                            {/* Only bookmark icon in top right */}
+                            <div className="flex items-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-10 w-10 p-0 hover:bg-yellow-100 transition-colors duration-200"
+                                onClick={() =>
+                                  isPinned
+                                    ? handleUnpinGroup(group.id, cleanTitle)
+                                    : handlePinGroup(group.id, cleanTitle)
+                                }
                               >
-                                <Calendar className="h-3 w-3" />
-                                No new tickets
-                              </Badge>
-                            );
-                          })()}
+                                {isPinned ? (
+                                  <BookmarkCheck className="h-5 w-5 text-yellow-500 drop-shadow-sm" />
+                                ) : (
+                                  <Bookmark className="h-5 w-5 text-gray-600 hover:text-yellow-500" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 mt-auto">
+                          {/* Bold badges and icons inline at bottom */}
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {(() => {
+                                // Ensure numeric values
+                                const todayCount = Number(group.todayCount ?? 0);
+                                const weekCount = Number(group.weekCount ?? 0);
+                                const monthCount = Number(group.monthCount ?? 0);
 
-                          {/* VIP badge - only show if there are VIP users */}
-                          {(() => {
-                            const vipCount = Number(group.vipCount ?? 0);
-                            if (vipCount > 0) {
-                              return (
-                                <Badge
-                                  variant="gray"
-                                  className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs"
-                                >
-                                  ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
-                                </Badge>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                      </CardContent>
-                    </Card>
+                                // Simple two-color system: gray for low volume, red for high volume
+                                if (todayCount > 0) {
+                                  const badgeClass =
+                                    todayCount >= 10
+                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
+                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+
+                                  return (
+                                    <Badge
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                    >
+                                      <Calendar className="h-3 w-3" />
+                                      {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
+                                    </Badge>
+                                  );
+                                } else if (weekCount > 0) {
+                                  const badgeClass =
+                                    weekCount >= 10
+                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
+                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+
+                                  return (
+                                    <Badge
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                    >
+                                      <Calendar className="h-3 w-3" />
+                                      {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
+                                    </Badge>
+                                  );
+                                } else if (monthCount > 0) {
+                                  const badgeClass =
+                                    monthCount >= 10
+                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
+                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+
+                                  return (
+                                    <Badge
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                    >
+                                      <Calendar className="h-3 w-3" />
+                                      {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
+                                    </Badge>
+                                  );
+                                }
+                                return (
+                                  <Badge className="bg-gray-50 text-gray-600 border-gray-200 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                    <Calendar className="h-3 w-3" />
+                                    No new tickets
+                                  </Badge>
+                                );
+                              })()}
+
+                              {/* VIP badge - BRIGHT GOLD */}
+                              {(() => {
+                                const vipCount = Number(group.vipCount ?? 0);
+                                if (vipCount > 0) {
+                                  return (
+                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                      ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+
+                            {/* Share icon with bright styling */}
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-10 w-10 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors duration-200"
+                                onClick={() => handleShareGroup(group.id)}
+                              >
+                                <Share className="h-5 w-5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   );
                 })}
               </div>

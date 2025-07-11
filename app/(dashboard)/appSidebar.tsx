@@ -169,11 +169,7 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                   {!issueGroupsError && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === `/common-issues`}
-                        tooltip="Common issues"
-                      >
+                      <SidebarMenuButton asChild isActive={pathname === `/common-issues`} tooltip="Common issues">
                         <Link href={`/common-issues`} onClick={handleItemClick}>
                           <GitBranch className="size-4" />
                           <span className="group-data-[collapsible=icon]:hidden">Common issues</span>
@@ -197,11 +193,7 @@ export function AppSidebar() {
                     {pinnedIssues.groups.slice(0, 5).map((group) => (
                       <SidebarMenuItem key={group.id}>
                         <SidebarMenuButton asChild tooltip={group.title}>
-                          <Link
-                            href={`/all?issueGroupId=${group.id}`}
-                            onClick={handleItemClick}
-                            className="text-xs"
-                          >
+                          <Link href={`/all?issueGroupId=${group.id}`} onClick={handleItemClick} className="text-xs">
                             <Ticket className="size-3" />
                             <span className="group-data-[collapsible=icon]:hidden truncate text-xs leading-tight">
                               {group.title.replace(/^\d+\s+/, "").length > 25

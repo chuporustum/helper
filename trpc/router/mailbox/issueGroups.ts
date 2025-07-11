@@ -369,4 +369,3 @@ export const issueGroupsRouter = {
     return { success: true };
   }),
 } satisfies TRPCRouterRecord;
-
