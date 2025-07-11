@@ -1,6 +1,6 @@
 {
-  "id": "47688f43-df07-4165-9eb6-87dbea79b095",
-  "prevId": "66387109-1306-47c8-b75d-bafc14c8f5b0",
+  "id": "64ed11db-d9a4-4583-b36e-23e7680fbabb",
+  "prevId": "47688f43-df07-4165-9eb6-87dbea79b095",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3560,6 +3560,13 @@
         },
         "available_in_chat": {
           "name": "available_in_chat",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "available_in_anonymous_chat": {
+          "name": "available_in_anonymous_chat",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

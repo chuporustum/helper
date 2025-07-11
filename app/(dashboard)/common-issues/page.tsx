@@ -1,11 +1,9 @@
 "use client";
 
-import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, MoreHorizontal, Search, Share, Users, X } from "lucide-react";
+import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, Search, Share, Users } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ConfirmationDialog } from "@/components/confirmationDialog";
 import { useIsMobile } from "@/components/hooks/use-mobile";
 import { PageHeader } from "@/components/pageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -82,19 +80,6 @@ export default function CommonIssuesPage() {
     return filtered;
   }, [data?.groups, searchQuery, sortBy]);
 
-  const bulkCloseAllMutation = api.mailbox.issueGroups.bulkCloseAll.useMutation({
-    onSuccess: (result) => {
-      toast.success(`Closed ${result.updatedCount} conversations`);
-      refetch();
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const handleBulkCloseAll = (groupId: number) => {
-    bulkCloseAllMutation.mutate({ id: groupId });
-  };
 
   const handleShareGroup = (groupId: number) => {
     const url = `${window.location.origin}/all?issueGroupId=${groupId}`;
@@ -301,7 +286,7 @@ export default function CommonIssuesPage() {
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
@@ -315,7 +300,7 @@ export default function CommonIssuesPage() {
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
@@ -329,7 +314,7 @@ export default function CommonIssuesPage() {
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
@@ -337,7 +322,7 @@ export default function CommonIssuesPage() {
                                   );
                                 }
                                 return (
-                                  <Badge className="bg-gray-50 text-gray-600 border-gray-200 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                  <Badge className="bg-gray-50 text-gray-600 border-gray-200 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md">
                                     <Calendar className="h-3 w-3" />
                                     No new tickets
                                   </Badge>
@@ -349,7 +334,7 @@ export default function CommonIssuesPage() {
                                 const vipCount = Number(group.vipCount ?? 0);
                                 if (vipCount > 0) {
                                   return (
-                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md">
                                       ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
                                     </Badge>
                                   );
