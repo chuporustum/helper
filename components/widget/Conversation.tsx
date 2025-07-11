@@ -242,7 +242,7 @@ export default function Conversation({
     }
   }, [isNewConversation, setMessages, setConversationSlug]);
 
-  const handleSubmit = async (screenshotData?: string) => {
+  const handleSubmit = async (screenshotData?: string, attachments?: File[]) => {
     if (!input.trim()) return;
 
     setData(undefined);
@@ -255,10 +255,37 @@ export default function Conversation({
 
       if (currentSlug) {
         setIsNewConversation(false);
+
+        const attachmentsToSend = [];
+
+        // Add screenshot if provided
+        if (screenshotData) {
+          attachmentsToSend.push({
+            name: "screenshot.png",
+            contentType: "image/png",
+            url: screenshotData,
+          });
+        }
+
+        // Add file attachments if provided
+        if (attachments && attachments.length > 0) {
+          for (const file of attachments) {
+            const reader = new FileReader();
+            const dataUrl = await new Promise<string>((resolve) => {
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(file);
+            });
+
+            attachmentsToSend.push({
+              name: file.name,
+              contentType: file.type,
+              url: dataUrl,
+            });
+          }
+        }
+
         handleAISubmit(undefined, {
-          experimental_attachments: screenshotData
-            ? [{ name: "screenshot.png", contentType: "image/png", url: screenshotData }]
-            : [],
+          experimental_attachments: attachmentsToSend,
           body: { conversationSlug: currentSlug },
         });
       }
