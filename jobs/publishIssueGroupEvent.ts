@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { issueGroups, mailboxes } from "@/db/schema";
-import { assertDefinedOrRaiseNonRetriableError } from "@/jobs/utils";
+import { issueGroups } from "@/db/schema";
 import { issueGroupsChannelId } from "@/lib/realtime/channels";
 import { publishToRealtime } from "@/lib/realtime/publish";
 
@@ -20,22 +19,13 @@ export const publishIssueGroupEvent = async ({
     return;
   }
 
-  // For now, we'll publish to all mailboxes since issue groups span mailboxes
-  // In the future, we could optimize this by tracking which mailboxes have conversations in each group
-  const allMailboxes = await db.query.mailboxes.findMany({
-    columns: { slug: true },
+  // Publish to the global issue groups channel
+  await publishToRealtime({
+    channel: issueGroupsChannelId(),
+    event: "issueGroupUpdated",
+    data: {
+      eventType,
+      issueGroup: eventType === "deleted" ? { id: issueGroupId } : issueGroup,
+    },
   });
-
-  await Promise.all(
-    allMailboxes.map((mailbox) =>
-      publishToRealtime({
-        channel: issueGroupsChannelId(mailbox.slug),
-        event: "issueGroupUpdated",
-        data: {
-          eventType,
-          issueGroup: eventType === "deleted" ? { id: issueGroupId } : issueGroup,
-        },
-      }),
-    ),
-  );
 };

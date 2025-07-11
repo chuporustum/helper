@@ -213,9 +213,9 @@ export const issueGroupsRouter = {
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify conversation belongs to this mailbox
+      // Verify conversation exists
       const conversation = await db.query.conversations.findFirst({
-        where: and(eq(conversations.id, input.conversationId), eq(conversations.unused_mailboxId, ctx.mailbox.id)),
+        where: eq(conversations.id, input.conversationId),
       });
 
       if (!conversation) {
@@ -271,7 +271,6 @@ export const issueGroupsRouter = {
     }
 
     await triggerEvent("conversations/bulk-update", {
-      mailboxId: ctx.mailbox.id,
       userId: ctx.user.id,
       conversationFilter: openConversationIds,
       status: "closed",
@@ -286,12 +285,18 @@ export const issueGroupsRouter = {
       where: eq(userProfiles.id, ctx.user.id),
     });
 
-    if (!userProfile?.pinnedIssueGroupIds || !Array.isArray(userProfile.pinnedIssueGroupIds) || userProfile.pinnedIssueGroupIds.length === 0) {
+    if (
+      !userProfile?.pinnedIssueGroupIds ||
+      !Array.isArray(userProfile.pinnedIssueGroupIds) ||
+      userProfile.pinnedIssueGroupIds.length === 0
+    ) {
       return { groups: [] };
     }
 
     // Ensure all IDs are numbers
-    const pinnedIds = userProfile.pinnedIssueGroupIds.map((id) => (typeof id === "string" ? parseInt(id, 10) : id)).filter((id) => !isNaN(id));
+    const pinnedIds = userProfile.pinnedIssueGroupIds
+      .map((id) => (typeof id === "string" ? parseInt(id, 10) : id))
+      .filter((id) => !isNaN(id));
 
     if (pinnedIds.length === 0) {
       return { groups: [] };
@@ -370,3 +375,4 @@ export const issueGroupsRouter = {
     return { success: true };
   }),
 } satisfies TRPCRouterRecord;
+

@@ -145,7 +145,7 @@ export const updateConversation = async (
         const mailbox = assertDefined(await getMailbox());
         const events = [
           publishToRealtime({
-            channel: conversationChannelId(mailbox.slug, updatedConversation.slug),
+            channel: conversationChannelId(updatedConversation.slug),
             event: "conversation.updated",
             data: serializeConversation(mailbox, updatedConversation),
           }),
@@ -157,7 +157,7 @@ export const updateConversation = async (
         ) {
           events.push(
             publishToRealtime({
-              channel: conversationsListChannelId(mailbox.slug),
+              channel: conversationsListChannelId(),
               event: "conversation.statusChanged",
               data: {
                 id: updatedConversation.id,
