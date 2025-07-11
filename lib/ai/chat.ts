@@ -474,7 +474,7 @@ export const createUserMessage = async (
     isPerfect: false,
     isPinned: false,
     isFlaggedAsBad: false,
-    metadata: { includesScreenshot: hasAttachments },
+    metadata: { includesScreenshot: hasAttachments, hasAttachments },
   });
 
   if (hasAttachments) {
