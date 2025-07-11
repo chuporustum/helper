@@ -1,4 +1,4 @@
-import { Camera, Mic } from "lucide-react";
+import { Camera, Mic, Paperclip } from "lucide-react";
 import * as motion from "motion/react-client";
 import { useCallback, useEffect, useState } from "react";
 import { useSpeechRecognition } from "@/components/hooks/useSpeechRecognition";
@@ -15,7 +15,7 @@ type Props = {
   input: string;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  handleSubmit: (screenshotData?: string) => void;
+  handleSubmit: (screenshotData?: string, attachments?: File[]) => void;
   isLoading: boolean;
   isGumroadTheme: boolean;
   placeholder?: string;
@@ -70,6 +70,8 @@ export default function ChatInput({
 }: Props) {
   const [showScreenshot, setShowScreenshot] = useState(false);
   const [includeScreenshot, setIncludeScreenshot] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const { screenshot, setScreenshot } = useScreenshotStore();
 
   const handleSegment = useCallback(
@@ -116,6 +118,7 @@ export default function ChatInput({
     if (!input) {
       setShowScreenshot(false);
       setIncludeScreenshot(false);
+      setSelectedFiles([]);
     } else if (SCREENSHOT_KEYWORDS.some((keyword) => input.toLowerCase().includes(keyword))) {
       setShowScreenshot(true);
     }
@@ -127,6 +130,39 @@ export default function ChatInput({
       setScreenshot(null);
     }
   }, [screenshot]);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
+      setSelectedFiles((prev) => [...prev, ...imageFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...imageFiles]);
+    }
+  };
 
   const submit = () => {
     const normalizedInput = input.trim().toLowerCase();
@@ -143,7 +179,7 @@ export default function ChatInput({
     if (includeScreenshot) {
       sendScreenshot();
     } else {
-      handleSubmit();
+      handleSubmit(undefined, selectedFiles.length > 0 ? selectedFiles : undefined);
     }
   };
 
@@ -156,7 +192,14 @@ export default function ChatInput({
   };
 
   return (
-    <div className="border-t border-black p-4 bg-white">
+    <div
+      className={cn("border-t border-black p-4 bg-white", {
+        "bg-blue-50": isDragOver,
+      })}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -185,6 +228,27 @@ export default function ChatInput({
             disabled={isLoading}
           />
           <div className="flex items-center gap-2">
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <label
+                    className="text-primary hover:text-muted-foreground p-2 rounded-full hover:bg-muted cursor-pointer"
+                    aria-label="Attach images"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileSelect}
+                      disabled={isLoading}
+                    />
+                  </label>
+                </TooltipTrigger>
+                <TooltipContent>Attach images</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {isSupported && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -213,6 +277,33 @@ export default function ChatInput({
             <ShadowHoverButton isLoading={isLoading} isGumroadTheme={isGumroadTheme} />
           </div>
         </div>
+        {selectedFiles.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{
+              type: "spring",
+              stiffness: 600,
+              damping: 30,
+            }}
+            className="flex flex-wrap gap-2"
+          >
+            {selectedFiles.map((file, index) => (
+              <div key={index} className="relative bg-muted rounded-lg p-2 flex items-center gap-2">
+                <div className="text-sm text-muted-foreground">{file.name}</div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${file.name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
         {showScreenshot && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
