@@ -171,10 +171,10 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         asChild
-                        isActive={pathname === `/mailboxes/${mailboxSlug}/common-issues`}
+                        isActive={pathname === `/common-issues`}
                         tooltip="Common issues"
                       >
-                        <Link href={`/mailboxes/${mailboxSlug}/common-issues`} onClick={handleItemClick}>
+                        <Link href={`/common-issues`} onClick={handleItemClick}>
                           <GitBranch className="size-4" />
                           <span className="group-data-[collapsible=icon]:hidden">Common issues</span>
                         </Link>
@@ -198,7 +198,7 @@ export function AppSidebar() {
                       <SidebarMenuItem key={group.id}>
                         <SidebarMenuButton asChild tooltip={group.title}>
                           <Link
-                            href={`/mailboxes/${mailboxSlug}/all?issueGroupId=${group.id}`}
+                            href={`/all?issueGroupId=${group.id}`}
                             onClick={handleItemClick}
                             className="text-xs"
                           >

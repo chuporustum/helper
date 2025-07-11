@@ -71,11 +71,7 @@ const CommonIssueEditForm = ({
   );
 };
 
-type CommonIssuesSettingProps = {
-  mailboxSlug: string;
-};
-
-const CommonIssuesSetting = ({ mailboxSlug }: CommonIssuesSettingProps) => {
+const CommonIssuesSetting = () => {
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueDescription, setNewIssueDescription] = useState("");
   const [showNewIssueForm, setShowNewIssueForm] = useState(false);
@@ -83,9 +79,7 @@ const CommonIssuesSetting = ({ mailboxSlug }: CommonIssuesSettingProps) => {
 
   const utils = api.useUtils();
 
-  const { data, isLoading } = api.mailbox.issueGroups.listAll.useQuery({
-    mailboxSlug,
-  });
+  const { data, isLoading } = api.mailbox.issueGroups.listAll.useQuery();
   const issueGroups = data?.groups ?? [];
 
   const filteredIssueGroups = issueGroups.filter(
@@ -96,7 +90,7 @@ const CommonIssuesSetting = ({ mailboxSlug }: CommonIssuesSettingProps) => {
 
   const createMutation = api.mailbox.issueGroups.create.useMutation({
     onSuccess: () => {
-      utils.mailbox.issueGroups.listAll.invalidate({ mailboxSlug });
+      utils.mailbox.issueGroups.listAll.invalidate();
       setShowNewIssueForm(false);
       setNewIssueTitle("");
       setNewIssueDescription("");
@@ -112,7 +106,7 @@ const CommonIssuesSetting = ({ mailboxSlug }: CommonIssuesSettingProps) => {
       toast.success(
         `Common issue deleted${data.unassignedConversations ? ` (${data.unassignedConversations} conversations unassigned)` : ""}`,
       );
-      utils.mailbox.issueGroups.listAll.invalidate({ mailboxSlug });
+      utils.mailbox.issueGroups.listAll.invalidate();
     },
     onError: (error) => {
       toast.error("Error deleting common issue", { description: error.message });
@@ -124,13 +118,11 @@ const CommonIssuesSetting = ({ mailboxSlug }: CommonIssuesSettingProps) => {
     await createMutation.mutateAsync({
       title: newIssueTitle.trim(),
       description: newIssueDescription.trim() || undefined,
-      mailboxSlug,
     });
   };
 
   const handleDeleteIssue = async (id: number) => {
     await deleteMutation.mutateAsync({
-      mailboxSlug,
       id,
     });
   };

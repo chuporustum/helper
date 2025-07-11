@@ -9,19 +9,19 @@ import { api } from "@/trpc/react";
 import { useConversationContext } from "./conversationContext";
 
 export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId: number | null }) => {
-  const { mailboxSlug, conversationSlug, data: conversationInfo } = useConversationContext();
+  const { conversationSlug, data: conversationInfo } = useConversationContext();
   const [selectedIssueId, setSelectedIssueId] = useState<string>(
     initialIssueGroupId ? initialIssueGroupId.toString() : "none",
   );
 
-  const { data: issueGroups } = api.mailbox.issueGroups.listAll.useQuery({ mailboxSlug });
+  const { data: issueGroups } = api.mailbox.issueGroups.listAll.useQuery();
   const utils = api.useUtils();
 
   const assignMutation = api.mailbox.issueGroups.assignConversation.useMutation({
     onSuccess: () => {
       toast.success("Issue assignment updated successfully");
       // Refresh conversation data
-      utils.mailbox.conversations.get.invalidate({ mailboxSlug, conversationSlug });
+      utils.mailbox.conversations.get.invalidate({ conversationSlug });
     },
     onError: (error) => {
       toast.error(error.message);
@@ -37,7 +37,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
 
     if (conversationInfo?.id) {
       assignMutation.mutate({
-        mailboxSlug,
         conversationId: conversationInfo.id,
         issueGroupId: issueId,
       });
@@ -48,7 +47,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
     setSelectedIssueId("none");
     if (conversationInfo?.id) {
       assignMutation.mutate({
-        mailboxSlug,
         conversationId: conversationInfo.id,
         issueGroupId: null,
       });

@@ -22,7 +22,7 @@ import MetadataEndpointSetting from "../tools/metadataEndpointSetting";
 import ToolSetting from "../tools/toolSetting";
 
 export default function TabsPage() {
-  const params = useParams<{ mailbox_slug: string; tab: string }>();
+  const params = useParams<{ tab: string }>();
   const { data: mailbox, error } = api.mailbox.get.useQuery();
   useDocumentTitle("Settings");
 
@@ -46,7 +46,7 @@ export default function TabsPage() {
       label: "Common Issues",
       id: "common-issues",
       icon: GitBranch,
-      content: <CommonIssuesSetting mailboxSlug={mailbox.slug} />,
+      content: <CommonIssuesSetting />,
     },
     {
       label: "Customers",

@@ -24,8 +24,6 @@ import { useRealtimeEventOnce } from "@/lib/realtime/hooks";
 import { api } from "@/trpc/react";
 
 export default function CommonIssuesPage() {
-  const params = useParams();
-  const mailboxSlug = params.mailbox_slug as string;
   const isMobile = useIsMobile();
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,14 +31,11 @@ export default function CommonIssuesPage() {
   const limit = 20;
 
   const { data, isLoading, error, refetch } = api.mailbox.issueGroups.list.useQuery({
-    mailboxSlug,
     limit,
     offset: page * limit,
   });
 
-  const { data: pinnedData, refetch: refetchPinned } = api.mailbox.issueGroups.pinnedList.useQuery({
-    mailboxSlug,
-  });
+  const { data: pinnedData, refetch: refetchPinned } = api.mailbox.issueGroups.pinnedList.useQuery();
 
   const pinMutation = api.mailbox.issueGroups.pin.useMutation({
     onSuccess: () => {
@@ -98,25 +93,25 @@ export default function CommonIssuesPage() {
   });
 
   const handleBulkCloseAll = (groupId: number) => {
-    bulkCloseAllMutation.mutate({ mailboxSlug, id: groupId });
+    bulkCloseAllMutation.mutate({ id: groupId });
   };
 
   const handleShareGroup = (groupId: number) => {
-    const url = `${window.location.origin}/mailboxes/${mailboxSlug}/all?issueGroupId=${groupId}`;
+    const url = `${window.location.origin}/all?issueGroupId=${groupId}`;
     navigator.clipboard.writeText(url);
     toast.success("Issue group link copied to clipboard");
   };
 
   const handlePinGroup = (groupId: number, _cleanTitle: string) => {
-    pinMutation.mutate({ mailboxSlug, id: groupId });
+    pinMutation.mutate({ id: groupId });
   };
 
   const handleUnpinGroup = (groupId: number, _cleanTitle: string) => {
-    unpinMutation.mutate({ mailboxSlug, id: groupId });
+    unpinMutation.mutate({ id: groupId });
   };
 
   // Listen for realtime updates
-  useRealtimeEventOnce(issueGroupsChannelId(mailboxSlug), "issueGroupUpdated", () => {
+  useRealtimeEventOnce(issueGroupsChannelId(), "issueGroupUpdated", () => {
     refetch();
   });
 
@@ -224,7 +219,7 @@ export default function CommonIssuesPage() {
                             <div className="flex items-center gap-2 mb-2">
                               <CardTitle className="text-lg line-clamp-2 flex-1">
                                 <Link
-                                  href={`/mailboxes/${mailboxSlug}/all?issueGroupId=${group.id}`}
+                                  href={`/all?issueGroupId=${group.id}`}
                                   className="hover:underline"
                                 >
                                   {affectedUsers} {cleanTitle}
