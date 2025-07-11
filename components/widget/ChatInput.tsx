@@ -72,7 +72,11 @@ export default function ChatInput({
   const [includeScreenshot, setIncludeScreenshot] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const { screenshot, setScreenshot } = useScreenshotStore();
+
+  // File size limit: 25MB (to match existing limits)
+  const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
   const handleSegment = useCallback(
     (segment: string) => {
@@ -126,16 +130,50 @@ export default function ChatInput({
 
   useEffect(() => {
     if (screenshot?.response) {
-      handleSubmit(screenshot.response);
+      // Get any pending attachments that were selected before screenshot
+      const pendingAttachments = (window as any).pendingAttachments || [];
+      delete (window as any).pendingAttachments;
+
+      handleSubmit(screenshot.response, pendingAttachments.length > 0 ? pendingAttachments : undefined);
       setScreenshot(null);
     }
   }, [screenshot]);
 
+  const validateAndFilterFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith("image/")) {
+        errors.push(`${file.name}: Only image files are supported`);
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name}: File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds limit (25MB)`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (errors.length > 0) {
+      setFileError(errors.join(", "));
+      // Clear error after 5 seconds
+      setTimeout(() => setFileError(null), 5000);
+    } else {
+      setFileError(null);
+    }
+
+    return validFiles;
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
-      const imageFiles = Array.from(files).filter((file) => file.type.startsWith("image/"));
-      setSelectedFiles((prev) => [...prev, ...imageFiles]);
+      const validFiles = validateAndFilterFiles(files);
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
     }
   };
 
@@ -158,9 +196,9 @@ export default function ChatInput({
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length > 0) {
-      setSelectedFiles((prev) => [...prev, ...imageFiles]);
+    const validFiles = validateAndFilterFiles(files);
+    if (validFiles.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
     }
   };
 
@@ -177,6 +215,10 @@ export default function ChatInput({
       return;
     }
     if (includeScreenshot) {
+      // Store selected files in a temporary state that can be accessed after screenshot
+      if (selectedFiles.length > 0) {
+        (window as any).pendingAttachments = selectedFiles;
+      }
       sendScreenshot();
     } else {
       handleSubmit(undefined, selectedFiles.length > 0 ? selectedFiles : undefined);
@@ -277,6 +319,21 @@ export default function ChatInput({
             <ShadowHoverButton isLoading={isLoading} isGumroadTheme={isGumroadTheme} />
           </div>
         </div>
+        {fileError && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{
+              type: "spring",
+              stiffness: 600,
+              damping: 30,
+            }}
+            className="bg-red-50 border border-red-200 rounded-lg p-2"
+          >
+            <div className="text-sm text-red-600">{fileError}</div>
+          </motion.div>
+        )}
         {selectedFiles.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
