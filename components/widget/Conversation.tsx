@@ -243,7 +243,8 @@ export default function Conversation({
   }, [isNewConversation, setMessages, setConversationSlug]);
 
   const handleSubmit = async (screenshotData?: string, attachments?: File[]) => {
-    if (!input.trim()) return;
+    // Allow submission if there's text input OR attachments/screenshot
+    if (!input.trim() && !screenshotData && (!attachments || attachments.length === 0)) return;
 
     setData(undefined);
 

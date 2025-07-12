@@ -79,7 +79,7 @@ export const POST = withWidgetAuth(async ({ request }, { session, mailbox }) => 
   const userMessage = await createUserMessage(
     conversation.id,
     userEmail,
-    message.content,
+    message.content || (attachmentData.length > 0 ? "[Image]" : ""),
     attachmentData.length > 0 ? attachmentData : undefined,
   );
 
