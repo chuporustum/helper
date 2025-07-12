@@ -132,7 +132,7 @@ export default function ChatInput({
     if (screenshot?.response) {
       // Get any pending attachments that were selected before screenshot
       const pendingAttachments = (window as any).pendingAttachments || [];
-      delete (window as any).pendingAttachments;
+      (window as any).pendingAttachments = undefined;
 
       handleSubmit(screenshot.response, pendingAttachments.length > 0 ? pendingAttachments : undefined);
       setScreenshot(null);
