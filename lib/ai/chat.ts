@@ -465,6 +465,7 @@ export const createUserMessage = async (
   attachmentData?: { name: string; contentType: string; data: string }[],
 ) => {
   const hasAttachments = attachmentData && attachmentData.length > 0;
+  const includesScreenshot = attachmentData?.some(att => att.name === "screenshot.png") || false;
   const message = await createConversationMessage({
     conversationId,
     emailFrom: email,
@@ -474,7 +475,7 @@ export const createUserMessage = async (
     isPerfect: false,
     isPinned: false,
     isFlaggedAsBad: false,
-    metadata: { includesScreenshot: hasAttachments, hasAttachments },
+    metadata: { includesScreenshot, hasAttachments },
   });
 
   if (hasAttachments) {

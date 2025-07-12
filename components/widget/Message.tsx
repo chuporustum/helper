@@ -119,10 +119,19 @@ export default function Message({
               // Open image in new tab with proper handling
               const newWindow = window.open();
               if (newWindow) {
+                // Properly escape values to prevent XSS
+                const safeTitle = document.createElement('div');
+                safeTitle.textContent = attachment.name;
+                const escapedTitle = safeTitle.innerHTML;
+                
+                const safeUrl = document.createElement('div');
+                safeUrl.textContent = attachment.url;
+                const escapedUrl = safeUrl.innerHTML;
+                
                 newWindow.document.write(`
                   <html>
                     <head>
-                      <title>${attachment.name}</title>
+                      <title>${escapedTitle}</title>
                       <style>
                         body {
                           margin: 0;
@@ -140,7 +149,7 @@ export default function Message({
                       </style>
                     </head>
                     <body>
-                      <img src="${attachment.url}" alt="${attachment.name}" />
+                      <img src="${escapedUrl}" alt="${escapedTitle}" />
                     </body>
                   </html>
                 `);
