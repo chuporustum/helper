@@ -243,7 +243,6 @@ export default function Conversation({
   }, [isNewConversation, setMessages, setConversationSlug]);
 
   const handleSubmit = async (screenshotData?: string, attachments?: File[]) => {
-    // Allow submission if there's text input OR attachments/screenshot
     if (!input.trim() && !screenshotData && (!attachments || attachments.length === 0)) return;
 
     setData(undefined);
@@ -259,7 +258,6 @@ export default function Conversation({
 
         const attachmentsToSend = [];
 
-        // Add screenshot if provided
         if (screenshotData) {
           attachmentsToSend.push({
             name: "screenshot.png",
@@ -268,9 +266,8 @@ export default function Conversation({
           });
         }
 
-        // Add file attachments if provided
         if (attachments && attachments.length > 0) {
-          for (const file of attachments) {
+          const filePromises = attachments.map(async (file) => {
             try {
               const reader = new FileReader();
               const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -279,16 +276,23 @@ export default function Conversation({
                 reader.readAsDataURL(file);
               });
 
-              attachmentsToSend.push({
+              return {
                 name: file.name,
                 contentType: file.type,
                 url: dataUrl,
-              });
+              };
             } catch (error) {
               captureExceptionAndLog(error);
-              // Continue with other files, skip the failed one
+              return null;
             }
-          }
+          });
+
+          const fileResults = await Promise.all(filePromises);
+          fileResults.forEach((result) => {
+            if (result) {
+              attachmentsToSend.push(result);
+            }
+          });
         }
 
         handleAISubmit(undefined, {

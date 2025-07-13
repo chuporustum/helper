@@ -15,16 +15,16 @@ test.describe("Image Attachments E2E", () => {
 
     // Click to open the widget
     await widgetIcon.click();
-    
+
     // Wait for the widget to open - it might be in an iframe or shadow DOM
     await page.waitForTimeout(2000);
-    
+
     // Try to find the chat widget container first
     const widgetContainer = page.locator('[class*="helper-widget"]').first();
     await expect(widgetContainer).toBeVisible({ timeout: 10000 });
 
     // Wait for the widget iframe to load and grab its frame locator
-    const widgetFrame = page.frameLocator('iframe.helper-widget-iframe');
+    const widgetFrame = page.frameLocator("iframe.helper-widget-iframe");
 
     // Now find the chat input - it should be visible inside the iframe
     const chatInput = widgetFrame.locator('textarea[aria-label="Ask a question"]');
@@ -79,16 +79,16 @@ test.describe("Image Attachments E2E", () => {
 
     // Click to open the widget
     await widgetIcon.click();
-    
+
     // Wait for the widget to open
     await page.waitForTimeout(2000);
-    
+
     // Try to find the chat widget container first
     const widgetContainer = page.locator('[class*="helper-widget"]').first();
     await expect(widgetContainer).toBeVisible({ timeout: 10000 });
 
     // Wait for the widget iframe to load and grab its frame locator
-    const widgetFrame = page.frameLocator('iframe.helper-widget-iframe');
+    const widgetFrame = page.frameLocator("iframe.helper-widget-iframe");
     const chatInput = widgetFrame.locator('textarea[aria-label="Ask a question"]');
     await expect(chatInput).toBeVisible({ timeout: 15000 });
 

@@ -1,6 +1,6 @@
 import { Camera, Mic, Paperclip } from "lucide-react";
 import * as motion from "motion/react-client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSpeechRecognition } from "@/components/hooks/useSpeechRecognition";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -75,8 +75,11 @@ export default function ChatInput({
   const [fileError, setFileError] = useState<string | null>(null);
   const { screenshot, setScreenshot } = useScreenshotStore();
 
-  // File size limit: 25MB (to match existing limits)
+  // File size limit: 25MB per file, 50MB total, max 5 files
   const MAX_FILE_SIZE = 25 * 1024 * 1024;
+  const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
+  const MAX_FILE_COUNT = 5;
+  const pendingAttachmentsRef = useRef<File[]>([]);
 
   const handleSegment = useCallback(
     (segment: string) => {
@@ -130,19 +133,29 @@ export default function ChatInput({
 
   useEffect(() => {
     if (screenshot?.response) {
-      // Get any pending attachments that were selected before screenshot
-      const pendingAttachments = (window as any).pendingAttachments || [];
-      (window as any).pendingAttachments = undefined;
+      const pendingAttachments = pendingAttachmentsRef.current;
+      pendingAttachmentsRef.current = [];
 
       handleSubmit(screenshot.response, pendingAttachments.length > 0 ? pendingAttachments : undefined);
       setScreenshot(null);
+      setSelectedFiles([]);
     }
-  }, [screenshot]);
+  }, [screenshot, handleSubmit]);
 
   const validateAndFilterFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     const validFiles: File[] = [];
     const errors: string[] = [];
+
+    if (selectedFiles.length + fileArray.length > MAX_FILE_COUNT) {
+      errors.push(`Cannot upload more than ${MAX_FILE_COUNT} files total`);
+      setFileError(errors.join(", "));
+      setTimeout(() => setFileError(null), 5000);
+      return [];
+    }
+
+    const currentTotalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    let newTotalSize = currentTotalSize;
 
     for (const file of fileArray) {
       if (!file.type.startsWith("image/")) {
@@ -155,12 +168,19 @@ export default function ChatInput({
         continue;
       }
 
+      if (newTotalSize + file.size > MAX_TOTAL_SIZE) {
+        errors.push(
+          `Adding ${file.name} would exceed total size limit (${Math.round(MAX_TOTAL_SIZE / 1024 / 1024)}MB)`,
+        );
+        continue;
+      }
+
       validFiles.push(file);
+      newTotalSize += file.size;
     }
 
     if (errors.length > 0) {
       setFileError(errors.join(", "));
-      // Clear error after 5 seconds
       setTimeout(() => setFileError(null), 5000);
     } else {
       setFileError(null);
@@ -215,13 +235,13 @@ export default function ChatInput({
       return;
     }
     if (includeScreenshot) {
-      // Store selected files in a temporary state that can be accessed after screenshot
       if (selectedFiles.length > 0) {
-        (window as any).pendingAttachments = selectedFiles;
+        pendingAttachmentsRef.current = selectedFiles;
       }
       sendScreenshot();
     } else {
       handleSubmit(undefined, selectedFiles.length > 0 ? selectedFiles : undefined);
+      setSelectedFiles([]);
     }
   };
 

@@ -56,19 +56,44 @@ export const POST = withWidgetAuth(async ({ request }, { session, mailbox }) => 
   const userEmail = session.isAnonymous ? null : session.email || null;
   const attachments = message.experimental_attachments ?? [];
 
-  // Validate attachments
+  const MAX_FILE_SIZE = 25 * 1024 * 1024;
+  const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
+  let totalSize = 0;
+
   for (const attachment of attachments) {
-    if (!attachment.url.startsWith("data:image/") || !attachment.url.includes(",")) {
-      return corsResponse({ error: "Only valid image data URLs are supported" }, { status: 400 });
+    if (!/^data:image\/(png|jpeg|gif|webp);base64,.+/.test(attachment.url)) {
+      return corsResponse({ error: "Only valid image data URLs with base64 data are supported" }, { status: 400 });
+    }
+
+    const [, base64Data] = attachment.url.split(",");
+    if (!base64Data || base64Data.trim().length === 0) {
+      return corsResponse({ error: "Invalid data URL format - missing or empty base64 data" }, { status: 400 });
+    }
+
+    const fileSize = Math.ceil((base64Data.length * 3) / 4);
+
+    if (fileSize > MAX_FILE_SIZE) {
+      return corsResponse(
+        {
+          error: `File ${attachment.name || "unknown"} size (${Math.round(fileSize / 1024 / 1024)}MB) exceeds limit (25MB)`,
+        },
+        { status: 400 },
+      );
+    }
+
+    totalSize += fileSize;
+    if (totalSize > MAX_TOTAL_SIZE) {
+      return corsResponse(
+        {
+          error: `Total file size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds limit (50MB)`,
+        },
+        { status: 400 },
+      );
     }
   }
 
-  // Convert attachments to the format expected by createUserMessage
   const attachmentData = attachments.map((attachment) => {
     const [, base64Data] = attachment.url.split(",");
-    if (!base64Data) {
-      throw new Error("Invalid data URL format - missing base64 data");
-    }
     return {
       name: attachment.name || "unknown.png",
       contentType: attachment.contentType || "image/png",
@@ -80,7 +105,7 @@ export const POST = withWidgetAuth(async ({ request }, { session, mailbox }) => 
     conversation.id,
     userEmail,
     message.content || (attachmentData.length > 0 ? "[Image]" : ""),
-    attachmentData.length > 0 ? attachmentData : undefined,
+    attachmentData,
   );
 
   const supabase = await createClient();
