@@ -117,8 +117,18 @@ export default function Message({
               type="button"
               className="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
               onClick={() => {
-                // Open image directly in new tab with security parameters
-                window.open(attachment.url, "_blank", "noopener,noreferrer");
+                if (attachment.url.startsWith("data:")) {
+                  const link = document.createElement("a");
+                  link.href = attachment.url;
+                  link.target = "_blank";
+                  link.rel = "noopener noreferrer";
+                  link.download = attachment.name || "image";
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                } else {
+                  window.open(attachment.url, "_blank", "noopener,noreferrer");
+                }
               }}
               aria-label={`View image: ${attachment.name}`}
             >

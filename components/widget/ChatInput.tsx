@@ -1,12 +1,13 @@
 import { Camera, Mic, Paperclip } from "lucide-react";
 import * as motion from "motion/react-client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSpeechRecognition } from "@/components/hooks/useSpeechRecognition";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ShadowHoverButton from "@/components/widget/ShadowHoverButton";
 import { useScreenshotStore } from "@/components/widget/widgetState";
+import { MAX_FILE_COUNT, validateClientAttachments } from "@/lib/shared/attachmentValidation";
 import { captureExceptionAndLog } from "@/lib/shared/sentry";
 import { cn } from "@/lib/utils";
 import { closeWidget, sendScreenshot } from "@/lib/widget/messages";
@@ -75,11 +76,8 @@ export default function ChatInput({
   const [fileError, setFileError] = useState<string | null>(null);
   const { screenshot, setScreenshot } = useScreenshotStore();
 
-  // File size limit: 25MB per file, 50MB total, max 5 files
-  const MAX_FILE_SIZE = 25 * 1024 * 1024;
-  const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
-  const MAX_FILE_COUNT = 5;
   const pendingAttachmentsRef = useRef<File[]>([]);
+  const objectUrlsRef = useRef<Map<string, string>>(new Map());
 
   const handleSegment = useCallback(
     (segment: string) => {
@@ -138,55 +136,65 @@ export default function ChatInput({
 
       handleSubmit(screenshot.response, pendingAttachments.length > 0 ? pendingAttachments : undefined);
       setScreenshot(null);
+
+      // Clean up all object URLs when clearing files
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
       setSelectedFiles([]);
     }
   }, [screenshot, handleSubmit]);
 
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
+    };
+  }, []);
+
+  // Memoized object URLs to prevent recreation on every render
+  const filePreviewData = useMemo(() => {
+    return selectedFiles.map((file) => {
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      let objectUrl = objectUrlsRef.current.get(fileKey);
+
+      if (!objectUrl) {
+        objectUrl = URL.createObjectURL(file);
+        objectUrlsRef.current.set(fileKey, objectUrl);
+      }
+
+      return {
+        file,
+        objectUrl,
+        key: fileKey,
+      };
+    });
+  }, [selectedFiles]);
+
   const validateAndFilterFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    const validFiles: File[] = [];
-    const errors: string[] = [];
 
-    if (selectedFiles.length + fileArray.length > MAX_FILE_COUNT) {
-      errors.push(`Cannot upload more than ${MAX_FILE_COUNT} files total`);
-      setFileError(errors.join(", "));
+    const validationResult = validateClientAttachments(
+      fileArray.map((file) => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      })),
+      selectedFiles.map((file) => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      })),
+    );
+
+    if (!validationResult.isValid) {
+      setFileError(validationResult.errors.join(", "));
       setTimeout(() => setFileError(null), 5000);
       return [];
     }
 
-    const currentTotalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-    let newTotalSize = currentTotalSize;
-
-    for (const file of fileArray) {
-      if (!file.type.startsWith("image/")) {
-        errors.push(`${file.name}: Only image files are supported`);
-        continue;
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds limit (25MB)`);
-        continue;
-      }
-
-      if (newTotalSize + file.size > MAX_TOTAL_SIZE) {
-        errors.push(
-          `Adding ${file.name} would exceed total size limit (${Math.round(MAX_TOTAL_SIZE / 1024 / 1024)}MB)`,
-        );
-        continue;
-      }
-
-      validFiles.push(file);
-      newTotalSize += file.size;
-    }
-
-    if (errors.length > 0) {
-      setFileError(errors.join(", "));
-      setTimeout(() => setFileError(null), 5000);
-    } else {
-      setFileError(null);
-    }
-
-    return validFiles;
+    setFileError(null);
+    return fileArray.filter((file) => file.type.startsWith("image/"));
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,7 +206,19 @@ export default function ChatInput({
   };
 
   const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => {
+      const fileToRemove = prev[index];
+      if (fileToRemove) {
+        // Clean up object URL for removed file
+        const fileKey = `${fileToRemove.name}-${fileToRemove.size}-${fileToRemove.lastModified}`;
+        const objectUrl = objectUrlsRef.current.get(fileKey);
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrlsRef.current.delete(fileKey);
+        }
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -235,12 +255,14 @@ export default function ChatInput({
       return;
     }
     if (includeScreenshot) {
-      if (selectedFiles.length > 0) {
-        pendingAttachmentsRef.current = selectedFiles;
-      }
+      pendingAttachmentsRef.current = [...selectedFiles];
       sendScreenshot();
     } else {
       handleSubmit(undefined, selectedFiles.length > 0 ? selectedFiles : undefined);
+
+      // Clean up all object URLs when clearing files
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
       setSelectedFiles([]);
     }
   };
@@ -255,8 +277,8 @@ export default function ChatInput({
 
   return (
     <div
-      className={cn("border-t border-black p-4 bg-white", {
-        "bg-blue-50": isDragOver,
+      className={cn("border-t border-black p-4 bg-background", {
+        "bg-muted": isDragOver,
       })}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -268,7 +290,7 @@ export default function ChatInput({
           stopRecording();
           submit();
         }}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-2 relative"
       >
         <div className="flex-1 flex items-start">
           <Textarea
@@ -286,7 +308,7 @@ export default function ChatInput({
               }
             }}
             placeholder={placeholder}
-            className="self-stretch max-w-md placeholder:text-muted-foreground text-foreground flex-1 resize-none border-none bg-white p-0 pr-3 outline-none focus:border-none focus:outline-none focus:ring-0 min-h-[24px] max-h-[200px]"
+            className="self-stretch max-w-md placeholder:text-muted-foreground text-foreground flex-1 resize-none border-none bg-background p-0 pr-3 outline-none focus:border-none focus:outline-none focus:ring-0 min-h-[24px] max-h-[200px]"
             disabled={isLoading}
           />
           <div className="flex items-center">
@@ -349,7 +371,7 @@ export default function ChatInput({
               stiffness: 600,
               damping: 30,
             }}
-            className="bg-red-50 border border-red-200 rounded-lg p-2"
+            className="absolute bottom-full left-4 right-4 mb-2 bg-red-50 border border-red-200 rounded-lg p-2 shadow-lg z-50"
           >
             <div className="text-sm text-red-600">{fileError}</div>
           </motion.div>
@@ -366,18 +388,26 @@ export default function ChatInput({
             }}
             className="flex flex-wrap gap-2"
           >
-            {selectedFiles.map((file, index) => (
-              <div key={index} className="relative bg-muted rounded-lg p-2 flex items-center gap-2">
-                <div className="text-sm text-muted-foreground">{file.name}</div>
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label={`Remove ${file.name}`}
-                >
-                  ×
-                </button>
-              </div>
+            {filePreviewData.map(({ file, objectUrl, key }, index) => (
+              <TooltipProvider key={key} delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative bg-muted rounded-lg p-2 flex items-center gap-2">
+                      <img src={objectUrl} alt={file.name} className="w-8 h-8 object-cover rounded border" />
+                      <div className="text-sm text-muted-foreground truncate max-w-20">{file.name}</div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>{file.name}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ))}
           </motion.div>
         )}

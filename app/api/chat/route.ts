@@ -11,6 +11,7 @@ import {
   generateConversationSubject,
   getConversationBySlugAndMailbox,
 } from "@/lib/data/conversation";
+import { validateAttachments } from "@/lib/shared/attachmentValidation";
 import { createClient } from "@/lib/supabase/server";
 import { WidgetSessionPayload } from "@/lib/widgetSession";
 
@@ -56,44 +57,28 @@ export const POST = withWidgetAuth(async ({ request }, { session, mailbox }) => 
   const userEmail = session.isAnonymous ? null : session.email || null;
   const attachments = message.experimental_attachments ?? [];
 
-  const MAX_FILE_SIZE = 25 * 1024 * 1024;
-  const MAX_TOTAL_SIZE = 50 * 1024 * 1024;
-  let totalSize = 0;
+  const validationResult = validateAttachments(
+    attachments.map((att) => ({
+      name: att.name || "unknown",
+      url: att.url,
+      type: att.contentType,
+    })),
+  );
 
-  for (const attachment of attachments) {
-    if (!/^data:image\/(png|jpeg|gif|webp);base64,.+/.test(attachment.url)) {
-      return corsResponse({ error: "Only valid image data URLs with base64 data are supported" }, { status: 400 });
-    }
-
-    const [, base64Data] = attachment.url.split(",");
-    if (!base64Data || base64Data.trim().length === 0) {
-      return corsResponse({ error: "Invalid data URL format - missing or empty base64 data" }, { status: 400 });
-    }
-
-    const fileSize = Math.ceil((base64Data.length * 3) / 4);
-
-    if (fileSize > MAX_FILE_SIZE) {
-      return corsResponse(
-        {
-          error: `File ${attachment.name || "unknown"} size (${Math.round(fileSize / 1024 / 1024)}MB) exceeds limit (25MB)`,
-        },
-        { status: 400 },
-      );
-    }
-
-    totalSize += fileSize;
-    if (totalSize > MAX_TOTAL_SIZE) {
-      return corsResponse(
-        {
-          error: `Total file size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds limit (50MB)`,
-        },
-        { status: 400 },
-      );
-    }
+  if (!validationResult.isValid) {
+    return corsResponse({ error: validationResult.errors.join(", ") }, { status: 400 });
   }
 
   const attachmentData = attachments.map((attachment) => {
+    if (!attachment.url) {
+      throw new Error(`Attachment ${attachment.name || "unknown"} is missing URL`);
+    }
+
     const [, base64Data] = attachment.url.split(",");
+    if (!base64Data) {
+      throw new Error(`Attachment ${attachment.name || "unknown"} has invalid URL format`);
+    }
+
     return {
       name: attachment.name || "unknown.png",
       contentType: attachment.contentType || "image/png",
