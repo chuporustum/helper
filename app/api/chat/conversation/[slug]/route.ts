@@ -77,7 +77,7 @@ export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }
                 .map(async (a) => ({
                   name: a.name,
                   url: await getFileUrl(a),
-                  contentType: a.contentType || "image/png",
+                  contentType: a.mimetype,
                 })),
             )
           : [],

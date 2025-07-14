@@ -1,7 +1,7 @@
-export const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
-export const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
-export const MAX_FILE_COUNT = 5;
-export const SUPPORTED_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_COUNT = 5;
+const SUPPORTED_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 export interface AttachmentValidationResult {
   isValid: boolean;

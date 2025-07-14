@@ -1,4 +1,4 @@
-import { Camera, Mic, Paperclip } from "lucide-react";
+import { Camera, Mic, Paperclip, X } from "lucide-react";
 import * as motion from "motion/react-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSpeechRecognition } from "@/components/hooks/useSpeechRecognition";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ShadowHoverButton from "@/components/widget/ShadowHoverButton";
 import { useScreenshotStore } from "@/components/widget/widgetState";
-import { MAX_FILE_COUNT, validateClientAttachments } from "@/lib/shared/attachmentValidation";
+import { validateClientAttachments } from "@/lib/shared/attachmentValidation";
 import { captureExceptionAndLog } from "@/lib/shared/sentry";
 import { cn } from "@/lib/utils";
 import { closeWidget, sendScreenshot } from "@/lib/widget/messages";
@@ -392,16 +392,16 @@ export default function ChatInput({
               <TooltipProvider key={key} delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="relative bg-muted rounded-lg p-2 flex items-center gap-2">
-                      <img src={objectUrl} alt={file.name} className="w-8 h-8 object-cover rounded border" />
-                      <div className="text-sm text-muted-foreground truncate max-w-20">{file.name}</div>
+                    <div className="relative border border-black rounded flex items-center gap-2">
+                      <img src={objectUrl} alt={file.name} className="w-10 h-10 object-cover rounded-l" />
+                      <div className="text-sm truncate max-w-20 text-black">{file.name}</div>
                       <button
                         type="button"
+                        className="p-2 pl-0"
                         onClick={() => removeFile(index)}
-                        className="text-muted-foreground hover:text-foreground"
                         aria-label={`Remove ${file.name}`}
                       >
-                        ×
+                        <X className="w-3 h-3 text-black" />
                       </button>
                     </div>
                   </TooltipTrigger>

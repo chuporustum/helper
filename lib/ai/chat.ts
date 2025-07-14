@@ -462,7 +462,7 @@ export const createUserMessage = async (
   conversationId: number,
   email: string | null,
   query: string,
-  attachmentData?: { name: string; contentType: string; data: string }[],
+  attachmentData: { name: string; contentType: string; data: string }[],
 ) => {
   const hasAttachments = attachmentData?.length > 0;
   const message = await createConversationMessage({
