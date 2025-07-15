@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, Search, Share, Users } from "lucide-react";
+import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -81,11 +81,6 @@ export default function CommonIssuesPage() {
   }, [data?.groups, searchQuery, sortBy]);
 
 
-  const handleShareGroup = (groupId: number) => {
-    const url = `${window.location.origin}/all?issueGroupId=${groupId}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Issue group link copied to clipboard");
-  };
 
   const handlePinGroup = (groupId: number, _cleanTitle: string) => {
     pinMutation.mutate({ id: groupId });
@@ -222,7 +217,7 @@ export default function CommonIssuesPage() {
                       </div>
 
                       {/* Main card */}
-                      <Card className="relative z-20 transition-all duration-300 ease-out flex flex-col h-full border-2 border-gray-300 shadow-xl bg-white group-hover:transform group-hover:-translate-y-4 group-hover:shadow-2xl group-hover:scale-105 group-hover:border-blue-400">
+                      <Card className="relative z-20 transition-all duration-300 ease-out flex flex-col h-full border-2 border-gray-300 shadow-xl bg-white group-hover:transform group-hover:-translate-y-4 group-hover:shadow-2xl group-hover:scale-105">
                         <CardHeader className="pb-3 flex-1">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
@@ -282,11 +277,11 @@ export default function CommonIssuesPage() {
                                   const badgeClass =
                                     todayCount >= 10
                                       ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
@@ -296,11 +291,11 @@ export default function CommonIssuesPage() {
                                   const badgeClass =
                                     weekCount >= 10
                                       ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
@@ -310,11 +305,11 @@ export default function CommonIssuesPage() {
                                   const badgeClass =
                                     monthCount >= 10
                                       ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-gray-50 text-gray-700 border-gray-200 shadow-lg"; // Low volume - SUPER LIGHT GRAY
+                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md`}
+                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
@@ -322,7 +317,7 @@ export default function CommonIssuesPage() {
                                   );
                                 }
                                 return (
-                                  <Badge className="bg-gray-50 text-gray-600 border-gray-200 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md">
+                                  <Badge variant="gray" className="shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
                                     <Calendar className="h-3 w-3" />
                                     No new tickets
                                   </Badge>
@@ -334,7 +329,7 @@ export default function CommonIssuesPage() {
                                 const vipCount = Number(group.vipCount ?? 0);
                                 if (vipCount > 0) {
                                   return (
-                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-md">
+                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
                                       ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
                                     </Badge>
                                   );
@@ -343,17 +338,6 @@ export default function CommonIssuesPage() {
                               })()}
                             </div>
 
-                            {/* Share icon with bright styling */}
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-10 w-10 p-0 hover:bg-blue-100 hover:text-blue-600 transition-colors duration-200"
-                                onClick={() => handleShareGroup(group.id)}
-                              >
-                                <Share className="h-5 w-5" />
-                              </Button>
-                            </div>
                           </div>
                         </CardContent>
                       </Card>
