@@ -115,7 +115,7 @@ export default function CommonIssuesPage() {
 
       <div className="flex-1 overflow-y-auto">
         {/* Header section */}
-        <div className="border-b border-gray-200 bg-white">
+        <div className="border-b">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
               {/* Left side: Title and description */}
@@ -186,7 +186,7 @@ export default function CommonIssuesPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredAndSortedGroups.map((group, index) => {
                   const isPinned = pinnedData?.groups.some((p) => p.id === group.id) ?? false;
 
@@ -205,48 +205,42 @@ export default function CommonIssuesPage() {
                         transformStyle: "preserve-3d",
                       }}
                     >
-                      {/* Background deck layers - 4 layers for rich effect */}
-                      <div className="absolute inset-0 transform rotate-1 translate-x-2 translate-y-3 opacity-40 group-hover:opacity-70 transition-all duration-500 ease-out group-hover:rotate-3 group-hover:translate-x-4 group-hover:translate-y-4 group-hover:scale-95">
-                        <Card className="h-full border-2 border-slate-300 shadow-lg bg-slate-100 backdrop-blur-sm" />
+                      {/* Subtle stacked cards effect */}
+                      <div className="absolute inset-0 transform translate-x-1 translate-y-1 opacity-20 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform duration-300">
+                        <Card className="h-full border shadow-xs bg-muted/20" />
                       </div>
-                      <div className="absolute inset-0 transform -rotate-0.5 translate-x-1.5 translate-y-2 opacity-50 group-hover:opacity-80 transition-all duration-400 ease-out group-hover:-rotate-2 group-hover:translate-x-3 group-hover:translate-y-3 group-hover:scale-97">
-                        <Card className="h-full border-2 border-slate-200 shadow-md bg-slate-50 backdrop-blur-sm" />
-                      </div>
-                      <div className="absolute inset-0 transform rotate-0.5 translate-x-1 translate-y-1 opacity-60 group-hover:opacity-90 transition-all duration-300 ease-out group-hover:rotate-1 group-hover:translate-x-2 group-hover:translate-y-2 group-hover:scale-98">
-                        <Card className="h-full border border-gray-300 shadow-md bg-gray-50 backdrop-blur-sm" />
+                      <div className="absolute inset-0 transform translate-x-0.5 translate-y-0.5 opacity-30 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-300">
+                        <Card className="h-full border shadow-xs bg-muted/30" />
                       </div>
 
                       {/* Main card */}
-                      <Card className="relative z-20 transition-all duration-300 ease-out flex flex-col h-full border-2 border-gray-300 shadow-xl bg-white group-hover:transform group-hover:-translate-y-4 group-hover:shadow-2xl group-hover:scale-105">
-                        <CardHeader className="pb-3 flex-1">
+                      <Card className="relative z-10 transition-shadow duration-200 flex flex-col hover:shadow-md cursor-pointer">
+                        <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
-                                <CardTitle className="text-lg font-bold line-clamp-2 flex-1">
+                                <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
                                   <Link
                                     href={`/all?issueGroupId=${group.id}`}
-                                    className="hover:underline text-gray-900"
+                                    className="hover:underline"
                                   >
                                     {affectedUsers} {cleanTitle}
                                   </Link>
                                 </CardTitle>
                               </div>
 
-                              {/* Always reserve space for description to maintain consistent height */}
-                              <div className="h-10 mb-2">
-                                {group.description && (
-                                  <CardDescription className="line-clamp-2 text-sm">
-                                    {group.description}
-                                  </CardDescription>
-                                )}
-                              </div>
+                              {group.description && (
+                                <CardDescription className="line-clamp-2 text-sm mb-2">
+                                  {group.description}
+                                </CardDescription>
+                              )}
                             </div>
                             {/* Only bookmark icon in top right */}
                             <div className="flex items-center">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-10 w-10 p-0 hover:bg-yellow-100 transition-colors duration-200"
+                                className="h-8 w-8 p-0 hover:bg-muted transition-colors"
                                 onClick={() =>
                                   isPinned
                                     ? handleUnpinGroup(group.id, cleanTitle)
@@ -254,15 +248,15 @@ export default function CommonIssuesPage() {
                                 }
                               >
                                 {isPinned ? (
-                                  <BookmarkCheck className="h-5 w-5 text-yellow-500 drop-shadow-sm" />
+                                  <BookmarkCheck className="h-4 w-4 text-yellow-600" />
                                 ) : (
-                                  <Bookmark className="h-5 w-5 text-gray-600 hover:text-yellow-500" />
+                                  <Bookmark className="h-4 w-4 text-muted-foreground" />
                                 )}
                               </Button>
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="pt-0 mt-auto">
+                        <CardContent className="pt-0">
                           {/* Bold badges and icons inline at bottom */}
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -272,44 +266,38 @@ export default function CommonIssuesPage() {
                                 const weekCount = Number(group.weekCount ?? 0);
                                 const monthCount = Number(group.monthCount ?? 0);
 
-                                // Simple two-color system: gray for low volume, red for high volume
+                                // Volume-based coloring
                                 if (todayCount > 0) {
-                                  const badgeClass =
-                                    todayCount >= 10
-                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
+                                  const variant = todayCount >= 10 ? "destructive" : "secondary";
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      variant={variant}
+                                      className="text-xs flex items-center gap-1"
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
                                     </Badge>
                                   );
                                 } else if (weekCount > 0) {
-                                  const badgeClass =
-                                    weekCount >= 10
-                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
+                                  const variant = weekCount >= 10 ? "destructive" : "secondary";
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      variant={variant}
+                                      className="text-xs flex items-center gap-1"
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
                                     </Badge>
                                   );
                                 } else if (monthCount > 0) {
-                                  const badgeClass =
-                                    monthCount >= 10
-                                      ? "bg-red-500 text-white border-red-600 shadow-lg" // High volume - RED
-                                      : "bg-muted/80 text-muted-foreground shadow-lg"; // Low volume - THEME GRAY
+                                  const variant = monthCount >= 10 ? "destructive" : "secondary";
 
                                   return (
                                     <Badge
-                                      className={`${badgeClass} text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full`}
+                                      variant={variant}
+                                      className="text-xs flex items-center gap-1"
                                     >
                                       <Calendar className="h-3 w-3" />
                                       {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
@@ -317,7 +305,7 @@ export default function CommonIssuesPage() {
                                   );
                                 }
                                 return (
-                                  <Badge variant="gray" className="shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                  <Badge variant="secondary" className="text-xs flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     No new tickets
                                   </Badge>
@@ -329,7 +317,7 @@ export default function CommonIssuesPage() {
                                 const vipCount = Number(group.vipCount ?? 0);
                                 if (vipCount > 0) {
                                   return (
-                                    <Badge className="bg-yellow-500 text-white border-yellow-600 shadow-lg text-xs font-medium px-3 py-1.5 flex items-center gap-1.5 rounded-full">
+                                    <Badge variant="outline" className="text-xs flex items-center gap-1 border-yellow-600 text-yellow-700">
                                       ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
                                     </Badge>
                                   );
