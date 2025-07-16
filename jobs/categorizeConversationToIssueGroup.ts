@@ -1,8 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { conversations } from "@/db/schema/conversations";
 import { conversationMessages } from "@/db/schema/conversationMessages";
+import { conversations } from "@/db/schema/conversations";
 import { issueGroups } from "@/db/schema/issueGroups";
 import { runAIObjectQuery } from "@/lib/ai";
 import { getMailbox, Mailbox } from "@/lib/data/mailbox";
@@ -35,7 +35,7 @@ const getConversationContent = (conversationData: {
 
 const categorizeWithAI = async (
   conversationContent: string,
-  availableIssueGroups: Array<{ id: number; title: string; description: string | null }>,
+  availableIssueGroups: { id: number; title: string; description: string | null }[],
   mailbox: Mailbox,
 ) => {
   if (availableIssueGroups.length === 0) {
@@ -125,10 +125,10 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
   );
 
   if (conversation.issueGroupId) {
-    return { 
+    return {
       message: "Conversation already assigned to an issue group",
       conversationId: conversation.id,
-      currentIssueGroupId: conversation.issueGroupId 
+      currentIssueGroupId: conversation.issueGroupId,
     };
   }
 
@@ -152,7 +152,7 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
 
   // Extract conversation content
   const conversationContent = getConversationContent(conversation);
-  
+
   if (!conversationContent.trim()) {
     return {
       message: "Skipped: conversation has no content to analyze",

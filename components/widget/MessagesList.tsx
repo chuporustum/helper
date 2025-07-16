@@ -47,6 +47,7 @@ export default function MessagesList({
       )}
       id="message-container"
       ref={scrollRef}
+      data-testid="messages-list"
     >
       <div className="flex flex-col gap-3" ref={contentRef}>
         {messages.map((message, index) => {
