@@ -177,7 +177,7 @@ export default function CommonIssuesPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 items-stretch">
                 {filteredAndSortedGroups.map((group, index) => {
                   const isPinned = pinnedData?.groups.some((p) => p.id === group.id) ?? false;
 
@@ -188,7 +188,7 @@ export default function CommonIssuesPage() {
                   return (
                     <div
                       key={group.id}
-                      className="group relative cursor-pointer"
+                      className="group relative cursor-pointer h-full"
                       style={{
                         perspective: "1200px",
                         transformStyle: "preserve-3d",
@@ -202,8 +202,8 @@ export default function CommonIssuesPage() {
                         <Card className="h-full border shadow-xs bg-muted/30" />
                       </div>
 
-                      <Card className="relative z-10 transition-shadow duration-200 flex flex-col hover:shadow-md cursor-pointer">
-                        <CardHeader className="pb-3">
+                      <Card className="relative z-10 transition-shadow duration-200 flex flex-col hover:shadow-md cursor-pointer h-full">
+                        <CardHeader className="pb-3 flex-1">
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
