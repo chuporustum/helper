@@ -44,7 +44,7 @@ const categorizeWithAI = async (
 
   const result = await runAIObjectQuery({
     mailbox,
-    queryType: "categorize_conversation_to_issue_group",
+    queryType: "auto_assign_conversation",
     schema: z.object({
       matchedGroupId: z.number().nullable(),
       reasoning: z.string(),
@@ -97,7 +97,6 @@ Remember: It's better to return null than to force a poor match.`,
       },
     ],
     temperature: 0.1, // Low temperature for consistent categorization
-    functionId: "categorize-conversation-to-issue-group",
   });
 
   return result;
@@ -141,7 +140,7 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
       description: issueGroups.description,
     })
     .from(issueGroups)
-    .where(eq(issueGroups.mailboxId, conversation.mailboxId));
+    .where(eq(issueGroups.mailboxId, mailbox.id));
 
   if (availableIssueGroups.length === 0) {
     return {

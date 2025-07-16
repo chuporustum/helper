@@ -57,7 +57,6 @@ export function AppSidebar() {
   const previousAppUrlRef = useRef<string | null>(null);
   const { data: openCounts } = api.mailbox.openCount.useQuery();
   const { data: mailbox } = api.mailbox.get.useQuery();
-  // Check if Common Issues feature is available
   const { data: pinnedIssues, error: issueGroupsError } = api.mailbox.issueGroups.pinnedList.useQuery();
   const isSettingsPage = pathname.startsWith(`/settings`);
   const { isMobile, setOpenMobile } = useSidebar();

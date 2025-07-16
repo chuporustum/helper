@@ -2,7 +2,7 @@
 
 import { ArrowUpDown, Bookmark, BookmarkCheck, Calendar, Search, Users } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/components/hooks/use-mobile";
 import { PageHeader } from "@/components/pageHeader";
@@ -28,9 +28,14 @@ export default function CommonIssuesPage() {
   const [sortBy, setSortBy] = useState<"frequency" | "recent">("frequency");
   const limit = 20;
 
+  // Reset page when search or sort changes
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, sortBy]);
+
   const { data, isLoading, error, refetch } = api.mailbox.issueGroups.list.useQuery({
-    limit,
-    offset: page * limit,
+    limit: limit * (page + 1),
+    offset: 0,
   });
 
   const { data: pinnedData, refetch: refetchPinned } = api.mailbox.issueGroups.pinnedList.useQuery();
@@ -76,8 +81,6 @@ export default function CommonIssuesPage() {
 
     return filtered;
   }, [data?.groups, searchQuery, sortBy]);
-
-
 
   const handlePinGroup = (groupId: number, _cleanTitle: string) => {
     pinMutation.mutate({ id: groupId });
@@ -208,10 +211,7 @@ export default function CommonIssuesPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
                                 <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
-                                  <Link
-                                    href={`/all?issueGroupId=${group.id}`}
-                                    className="hover:underline"
-                                  >
+                                  <Link href={`/all?issueGroupId=${group.id}`} className="hover:underline">
                                     {affectedUsers} {cleanTitle}
                                   </Link>
                                 </CardTitle>
@@ -252,44 +252,35 @@ export default function CommonIssuesPage() {
                                 const monthCount = Number(group.monthCount ?? 0);
 
                                 if (todayCount > 0) {
-                                  const variant = todayCount >= 10 ? "destructive" : "secondary";
+                                  const variant = todayCount >= 10 ? "destructive" : "gray";
 
                                   return (
-                                    <Badge
-                                      variant={variant}
-                                      className="text-xs flex items-center gap-1"
-                                    >
+                                    <Badge variant={variant} className="text-xs flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
                                       {todayCount} new ticket{todayCount !== 1 ? "s" : ""} today
                                     </Badge>
                                   );
                                 } else if (weekCount > 0) {
-                                  const variant = weekCount >= 10 ? "destructive" : "secondary";
+                                  const variant = weekCount >= 10 ? "destructive" : "gray";
 
                                   return (
-                                    <Badge
-                                      variant={variant}
-                                      className="text-xs flex items-center gap-1"
-                                    >
+                                    <Badge variant={variant} className="text-xs flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
                                       {weekCount} new ticket{weekCount !== 1 ? "s" : ""} this week
                                     </Badge>
                                   );
                                 } else if (monthCount > 0) {
-                                  const variant = monthCount >= 10 ? "destructive" : "secondary";
+                                  const variant = monthCount >= 10 ? "destructive" : "gray";
 
                                   return (
-                                    <Badge
-                                      variant={variant}
-                                      className="text-xs flex items-center gap-1"
-                                    >
+                                    <Badge variant={variant} className="text-xs flex items-center gap-1">
                                       <Calendar className="h-3 w-3" />
                                       {monthCount} new ticket{monthCount !== 1 ? "s" : ""} this month
                                     </Badge>
                                   );
                                 }
                                 return (
-                                  <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                                  <Badge variant="gray" className="text-xs flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     No new tickets
                                   </Badge>
@@ -300,7 +291,7 @@ export default function CommonIssuesPage() {
                                 const vipCount = Number(group.vipCount ?? 0);
                                 if (vipCount > 0) {
                                   return (
-                                    <Badge variant="outline" className="text-xs flex items-center gap-1 border-yellow-600 text-yellow-700">
+                                    <Badge variant="success-light" className="text-xs flex items-center gap-1">
                                       ⭐ {vipCount} VIP user{vipCount !== 1 ? "s" : ""}
                                     </Badge>
                                   );
@@ -308,7 +299,6 @@ export default function CommonIssuesPage() {
                                 return null;
                               })()}
                             </div>
-
                           </div>
                         </CardContent>
                       </Card>
@@ -317,7 +307,7 @@ export default function CommonIssuesPage() {
                 })}
               </div>
 
-              {data?.groups?.length === limit && !searchQuery && (
+              {data?.groups?.length === limit * (page + 1) && !searchQuery && (
                 <div className="flex justify-center mt-6">
                   <Button onClick={() => setPage(page + 1)} variant="outlined">
                     Load more

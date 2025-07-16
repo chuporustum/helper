@@ -20,7 +20,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   const assignMutation = api.mailbox.issueGroups.assignConversation.useMutation({
     onSuccess: () => {
       toast.success("Issue assignment updated successfully");
-      // Refresh conversation data
       utils.mailbox.conversations.get.invalidate({ conversationSlug });
     },
     onError: (error) => {
