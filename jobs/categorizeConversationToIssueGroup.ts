@@ -104,7 +104,6 @@ Remember: It's better to return null than to force a poor match.`,
 };
 
 export const categorizeConversationToIssueGroup = async ({ messageId }: { messageId: number }) => {
-  // Get the conversation from the message ID
   const conversation = assertDefinedOrRaiseNonRetriableError(
     await db.query.conversations.findFirst({
       where: inArray(
@@ -125,7 +124,6 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
     }),
   );
 
-  // Skip if already assigned to an issue group
   if (conversation.issueGroupId) {
     return { 
       message: "Conversation already assigned to an issue group",
@@ -134,10 +132,8 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
     };
   }
 
-  // Get mailbox info
   const mailbox = assertDefinedOrRaiseNonRetriableError(await getMailbox());
 
-  // Get all available issue groups for this mailbox
   const availableIssueGroups = await db
     .select({
       id: issueGroups.id,
@@ -164,10 +160,8 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
     };
   }
 
-  // Use AI to categorize
   const aiResult = await categorizeWithAI(conversationContent, availableIssueGroups, mailbox);
 
-  // If AI found a good match, assign it
   if (aiResult.matchedGroupId) {
     await db
       .update(conversations)
@@ -186,7 +180,6 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
     };
   }
 
-  // No good match found
   return {
     message: "No suitable issue group found for this conversation",
     conversationId: conversation.id,

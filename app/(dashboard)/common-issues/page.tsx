@@ -55,13 +55,11 @@ export default function CommonIssuesPage() {
     },
   });
 
-  // Filter and sort groups based on search and sort criteria
   const filteredAndSortedGroups = useMemo(() => {
     if (!data?.groups) return [];
 
     let filtered = data.groups;
 
-    // Client-side search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -69,7 +67,6 @@ export default function CommonIssuesPage() {
       );
     }
 
-    // Sort by frequency (open count) or recent updates
     filtered.sort((a, b) => {
       if (sortBy === "frequency") {
         return b.openCount - a.openCount;
@@ -90,7 +87,6 @@ export default function CommonIssuesPage() {
     unpinMutation.mutate({ id: groupId });
   };
 
-  // Listen for realtime updates
   useRealtimeEventOnce(issueGroupsChannelId(), "issueGroupUpdated", () => {
     refetch();
   });
@@ -114,16 +110,13 @@ export default function CommonIssuesPage() {
       {isMobile && <PageHeader title="Common Issues" variant="mahogany" />}
 
       <div className="flex-1 overflow-y-auto">
-        {/* Header section */}
         <div className="border-b">
           <div className="px-4 py-3">
             <div className="flex items-center justify-between">
-              {/* Left side: Title and description */}
               <div className="flex-1">
                 <h1 className="text-2xl font-semibold">Common Issues</h1>
               </div>
 
-              {/* Center: Search Bar */}
               <div className="flex-1 flex justify-center px-8">
                 <div className="relative w-full max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -136,7 +129,6 @@ export default function CommonIssuesPage() {
                 </div>
               </div>
 
-              {/* Right side: Sort control */}
               <div className="flex-1 flex justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -155,7 +147,6 @@ export default function CommonIssuesPage() {
           </div>
         </div>
 
-        {/* Main content area */}
         <div className="p-4 pl-6 space-y-4">
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -190,10 +181,8 @@ export default function CommonIssuesPage() {
                 {filteredAndSortedGroups.map((group, index) => {
                   const isPinned = pinnedData?.groups.some((p) => p.id === group.id) ?? false;
 
-                  // Use actual open count from the group data
                   const affectedUsers = group.openCount;
 
-                  // Clean title by removing any existing number prefix
                   const cleanTitle = group.title.replace(/^\d+\s+/, "");
 
                   return (
@@ -213,7 +202,6 @@ export default function CommonIssuesPage() {
                         <Card className="h-full border shadow-xs bg-muted/30" />
                       </div>
 
-                      {/* Main card */}
                       <Card className="relative z-10 transition-shadow duration-200 flex flex-col hover:shadow-md cursor-pointer">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
@@ -235,7 +223,6 @@ export default function CommonIssuesPage() {
                                 </CardDescription>
                               )}
                             </div>
-                            {/* Only bookmark icon in top right */}
                             <div className="flex items-center">
                               <Button
                                 variant="ghost"
@@ -257,16 +244,13 @@ export default function CommonIssuesPage() {
                           </div>
                         </CardHeader>
                         <CardContent className="pt-0">
-                          {/* Bold badges and icons inline at bottom */}
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 flex-wrap">
                               {(() => {
-                                // Ensure numeric values
                                 const todayCount = Number(group.todayCount ?? 0);
                                 const weekCount = Number(group.weekCount ?? 0);
                                 const monthCount = Number(group.monthCount ?? 0);
 
-                                // Volume-based coloring
                                 if (todayCount > 0) {
                                   const variant = todayCount >= 10 ? "destructive" : "secondary";
 
@@ -312,7 +296,6 @@ export default function CommonIssuesPage() {
                                 );
                               })()}
 
-                              {/* VIP badge - BRIGHT GOLD */}
                               {(() => {
                                 const vipCount = Number(group.vipCount ?? 0);
                                 if (vipCount > 0) {
