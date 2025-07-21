@@ -1,5 +1,5 @@
 {
-  "id": "ffb8f86a-5e9c-4fa1-8d56-e4479cd64395",
+  "id": "c0ef6c09-4015-4f59-a225-9bf2fa43f548",
   "prevId": "64ed11db-d9a4-4583-b36e-23e7680fbabb",
   "version": "7",
   "dialect": "postgresql",
@@ -1083,6 +1083,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "last_read_at": {
+          "name": "last_read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "conversation_provider": {
           "name": "conversation_provider",
           "type": "text",
@@ -1179,12 +1185,6 @@
         "anonymous_session_id": {
           "name": "anonymous_session_id",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "issue_group_id": {
-          "name": "issue_group_id",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -1352,21 +1352,6 @@
           "columns": [
             {
               "expression": "merged_into_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "conversations_issue_group_id_idx": {
-          "name": "conversations_issue_group_id_idx",
-          "columns": [
-            {
-              "expression": "issue_group_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3842,13 +3827,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'{\"role\":\"afk\",\"keywords\":[]}'::jsonb"
-        },
-        "pinned_issue_group_ids": {
-          "name": "pinned_issue_group_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
         }
       },
       "indexes": {},
@@ -4035,119 +4013,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.issue_groups": {
-      "name": "issue_groups",
-      "schema": "",
-      "columns": {
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id": {
-          "name": "id",
-          "type": "bigint",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "byDefault",
-            "name": "issue_groups_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "9223372036854775807",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "mailbox_id": {
-          "name": "mailbox_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "embedding": {
-          "name": "embedding",
-          "type": "vector(1536)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "issue_groups_mailbox_id_idx": {
-          "name": "issue_groups_mailbox_id_idx",
-          "columns": [
-            {
-              "expression": "mailbox_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "issue_groups_created_at_idx": {
-          "name": "issue_groups_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "issue_groups_embedding_idx": {
-          "name": "issue_groups_embedding_idx",
-          "columns": [
-            {
-              "expression": "embedding",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last",
-              "opclass": "vector_cosine_ops"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "hnsw",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

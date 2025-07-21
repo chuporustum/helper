@@ -1,26 +1,25 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { htmlToText } from "html-to-text";
-import { withWidgetAuth } from "@/app/api/widget/utils";
+import { corsResponse, withWidgetAuth } from "@/app/api/widget/utils";
+import { assertDefined } from "@/components/utils/assert";
 import { db } from "@/db/client";
 import { conversationMessages, conversations, files, MessageMetadata } from "@/db/schema";
 import { getFirstName } from "@/lib/auth/authUtils";
+import { updateConversation } from "@/lib/data/conversation";
 import { getFileUrl } from "@/lib/data/files";
 import { getBasicProfileById } from "@/lib/data/user";
+import { ConversationResult, updateConversationParamsSchema, UpdateConversationResult } from "@/packages/client/dist";
 
-export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params } }, { session }) => {
+export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }, request }, { session }) => {
   const { slug } = await params;
+  const url = new URL(request.url);
+  const markRead = url.searchParams.get("markRead") !== "false";
 
-  let baseCondition;
-  if (session.isAnonymous && session.anonymousSessionId) {
-    baseCondition = eq(conversations.anonymousSessionId, session.anonymousSessionId);
-  } else if (session.email) {
-    baseCondition = eq(conversations.emailFrom, session.email);
-  } else {
-    return Response.json({ error: "Not authorized - Invalid session" }, { status: 401 });
-  }
+  const whereCondition = conversationMatcher(slug, session);
+  if (!whereCondition) return Response.json({ error: "Not authorized - Invalid session" }, { status: 401 });
 
   const conversation = await db.query.conversations.findFirst({
-    where: and(eq(conversations.slug, slug), baseCondition),
+    where: whereCondition,
     with: {
       messages: {
         where: inArray(conversationMessages.role, ["user", "ai_assistant", "staff"]),
@@ -31,6 +30,10 @@ export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }
 
   if (!conversation) {
     return Response.json({ error: "Conversation not found" }, { status: 404 });
+  }
+
+  if (markRead) {
+    await updateConversation(conversation.id, { set: { lastReadAt: new Date() } });
   }
 
   const originalConversation =
@@ -59,15 +62,31 @@ export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }
     (session) => !session.events.some((event) => event.type === "completed"),
   );
 
+  const allAttachments = await Promise.all(
+    attachments.map(async (a) => ({
+      messageId: assertDefined(a.messageId).toString(),
+      name: a.name,
+      presignedUrl: await getFileUrl(a),
+    })),
+  );
+
   const formattedMessages = await Promise.all(
     conversation.messages.map(async (message) => ({
       id: message.id.toString(),
-      role: message.role === "staff" || message.role === "ai_assistant" ? "assistant" : message.role,
+      role:
+        message.role === "staff" || message.role === "ai_assistant" || message.role === "tool"
+          ? ("assistant" as const)
+          : message.role,
       content: message.cleanedUpText || htmlToText(message.body ?? "", { wordwrap: false }),
       createdAt: message.createdAt.toISOString(),
       reactionType: message.reactionType,
       reactionFeedback: message.reactionFeedback,
-      annotations: message.userId ? await getUserAnnotation(message.userId) : undefined,
+      annotations: [
+        ...(await getUserAnnotation(message.userId)),
+        ...allAttachments
+          .filter((a) => a.messageId === message.id.toString())
+          .map((a) => ({ attachment: { name: a.name, url: a.presignedUrl } })),
+      ],
       experimental_attachments:
         (message.metadata as MessageMetadata)?.hasAttachments ||
         (message.metadata as MessageMetadata)?.includesScreenshot
@@ -86,7 +105,7 @@ export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }
 
   const guideSessionMessages = activeGuideSessions.map((session) => ({
     id: `guide_session_${session.id}`,
-    role: "assistant",
+    role: "assistant" as const,
     content: "",
     parts: [
       {
@@ -111,21 +130,49 @@ export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 
-  return Response.json({
+  return corsResponse<ConversationResult>({
+    subject: conversation.subject,
     messages: allMessages,
     // We don't want to include staff-uploaded attachments in the AI messages, but we need to show them in the UI
-    allAttachments: await Promise.all(
-      attachments.map(async (a) => ({
-        messageId: a.messageId?.toString(),
-        name: a.name,
-        presignedUrl: await getFileUrl(a),
-      })),
-    ),
+    allAttachments,
     isEscalated: !originalConversation.assignedToAI,
   });
 });
 
-const getUserAnnotation = async (userId: string) => {
+export const PATCH = withWidgetAuth<{ slug: string }>(async ({ context: { params }, request }, { session }) => {
+  const { slug } = await params;
+
+  const { error } = updateConversationParamsSchema.safeParse(await request.json());
+  if (error) {
+    return corsResponse({ error: "markRead parameter is required" }, { status: 400 });
+  }
+
+  const whereCondition = conversationMatcher(slug, session);
+  if (!whereCondition) return Response.json({ error: "Not authorized - Invalid session" }, { status: 401 });
+
+  const conversation = await db.query.conversations.findFirst({ columns: { id: true }, where: whereCondition });
+
+  if (!conversation) {
+    return corsResponse({ error: "Conversation not found" }, { status: 404 });
+  }
+
+  await updateConversation(conversation.id, { set: { lastReadAt: new Date() } });
+
+  return corsResponse<UpdateConversationResult>({ success: true });
+});
+
+const getUserAnnotation = async (userId: string | null) => {
+  if (!userId) return [];
   const user = await getBasicProfileById(userId);
-  return user ? [{ user: { name: user.displayName ? getFirstName(user) : undefined } }] : undefined;
+  return user ? [{ user: { name: user.displayName ? getFirstName(user) : undefined } }] : [];
+};
+
+const conversationMatcher = (slug: string, session: any) => {
+  let baseCondition;
+  if (session.isAnonymous && session.anonymousSessionId) {
+    baseCondition = eq(conversations.anonymousSessionId, session.anonymousSessionId);
+  } else if (session.email) {
+    baseCondition = eq(conversations.emailFrom, session.email);
+  }
+  return baseCondition ? and(eq(conversations.slug, slug), baseCondition) : null;
 };

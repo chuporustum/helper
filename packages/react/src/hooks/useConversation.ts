@@ -1,36 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Message } from "@helperai/client";
 import { useHelperContext } from "../context/HelperContext";
 
-interface Message {
-  id: string;
-  content: string;
-  role: string;
+export interface AttachmentAnnotation {
+  attachment: {
+    name: string;
+    url: string;
+  };
+}
+
+export interface UserAnnotation {
+  user: {
+    name: string;
+  };
+}
+
+export interface Conversation {
+  subject: string | null;
+  messages: Message[];
+  isEscalated: boolean;
 }
 
 interface UseConversationResult {
-  messages: Message[];
+  conversation: Conversation | null;
   loading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
 export function useConversation(conversationSlug: string): UseConversationResult {
-  const { host, getToken } = useHelperContext();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { client } = useHelperContext();
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchConversation = useCallback(async () => {
-    const token = await getToken();
-
-    if (!token) {
-      setError("No authentication token provided");
-      setLoading(false);
-      return;
-    }
-
     if (!conversationSlug) {
       setError("No conversation slug provided");
       setLoading(false);
@@ -41,31 +47,21 @@ export function useConversation(conversationSlug: string): UseConversationResult
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${host}/api/chat/conversation/${conversationSlug}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conversation: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setMessages(data.messages || []);
+      const data = await client.conversations.get(conversationSlug);
+      setConversation(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch conversation");
     } finally {
       setLoading(false);
     }
-  }, [host, getToken, conversationSlug]);
+  }, [client, conversationSlug]);
 
   useEffect(() => {
     fetchConversation();
   }, [fetchConversation]);
 
   return {
-    messages,
+    conversation,
     loading,
     error,
     refetch: fetchConversation,
