@@ -139,8 +139,7 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
       title: issueGroups.title,
       description: issueGroups.description,
     })
-    .from(issueGroups)
-    .where(eq(issueGroups.mailboxId, mailbox.id));
+    .from(issueGroups);
 
   if (availableIssueGroups.length === 0) {
     return {

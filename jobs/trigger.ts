@@ -135,12 +135,6 @@ const events = {
     }),
     jobs: ["handleSlackAgentMessage"],
   },
-  "issue-groups/status-changed": {
-    data: z.object({
-      conversationId: z.number(),
-    }),
-    jobs: ["handleIssueGroupStatusChange"],
-  },
 };
 
 export type EventName = keyof typeof events;
