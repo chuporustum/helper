@@ -53,6 +53,7 @@ export const searchConversations = async (
 
   // Filters on conversations and messages that we can pass to searchEmailsByKeywords
   let where: Record<string, SQL> = {
+    mailbox: eq(conversations.unused_mailboxId, mailbox.id), // CRITICAL: Filter by current mailbox for data isolation
     notMerged: isNull(conversations.mergedIntoId),
     ...(filters.status?.length ? { status: inArray(conversations.status, filters.status) } : {}),
     ...(filters.assignee?.length ? { assignee: inArray(conversations.assignedToId, filters.assignee) } : {}),
