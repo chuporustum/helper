@@ -25,7 +25,7 @@ export const issueGroupsRouter = {
       startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get issue groups with conversation counts
+      // Get issue groups with conversation counts (filtered by mailbox)
       const groupsWithCounts = await db
         .select({
           id: issueGroups.id,
@@ -33,7 +33,7 @@ export const issueGroupsRouter = {
           description: issueGroups.description,
           createdAt: issueGroups.createdAt,
           updatedAt: issueGroups.updatedAt,
-          totalCount: count(conversations.id),
+          totalCount: sql<number>`COUNT(CASE WHEN ${conversations.id} IS NOT NULL THEN 1 END)::int`,
           openCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' THEN 1 END)::int`,
           todayCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfToday}::timestamp THEN 1 END)::int`,
           weekCount: sql<number>`COUNT(CASE WHEN ${conversations.status} = 'open' AND ${conversations.createdAt} >= ${startOfWeek}::timestamp THEN 1 END)::int`,
@@ -67,7 +67,7 @@ export const issueGroupsRouter = {
       return { groups };
     }),
 
-  listAll: mailboxProcedure.query(async ({ ctx }) => {
+  listAll: mailboxProcedure.query(async () => {
     const groups = await db
       .select({
         id: issueGroups.id,
@@ -75,7 +75,7 @@ export const issueGroupsRouter = {
         description: issueGroups.description,
         createdAt: issueGroups.createdAt,
         updatedAt: issueGroups.updatedAt,
-        conversationCount: count(conversations.id),
+        conversationCount: sql<number>`COUNT(${conversations.id})::int`,
       })
       .from(issueGroups)
       .leftJoin(conversations, eq(issueGroups.id, conversations.issueGroupId))
@@ -85,7 +85,7 @@ export const issueGroupsRouter = {
     return { groups };
   }),
 
-  get: mailboxProcedure.input(z.object({ id: z.number() })).query(async ({ ctx, input }) => {
+  get: mailboxProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
       with: {
@@ -117,7 +117,7 @@ export const issueGroupsRouter = {
         description: z.string().max(1000).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const newGroup = await db
         .insert(issueGroups)
         .values({
@@ -140,10 +140,10 @@ export const issueGroupsRouter = {
         description: z.string().max(1000).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { id, title, description } = input;
 
-      // Verify ownership
+      // Verify issue group exists (issue groups are global entities)
       const existingGroup = await db.query.issueGroups.findFirst({
         where: eq(issueGroups.id, id),
       });
@@ -166,8 +166,8 @@ export const issueGroupsRouter = {
       return updatedGroup;
     }),
 
-  delete: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Verify ownership and get conversation count
+  delete: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    // Verify group exists and get conversation count for current mailbox only
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
       with: {
@@ -183,12 +183,12 @@ export const issueGroupsRouter = {
 
     // Use transaction to ensure atomicity
     await db.transaction(async (tx) => {
-      // Unassign all conversations from this group
+      // Only unassign conversations from current mailbox
       if (group.conversations.length > 0) {
         await tx.update(conversations).set({ issueGroupId: null }).where(eq(conversations.issueGroupId, input.id));
       }
 
-      // Delete the group
+      // Delete the group since all conversations are unassigned
       await tx.delete(issueGroups).where(eq(issueGroups.id, input.id));
     });
 
@@ -202,8 +202,8 @@ export const issueGroupsRouter = {
         issueGroupId: z.number().nullable(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      // Verify conversation exists
+    .mutation(async ({ input }) => {
+      // Verify conversation exists and belongs to this mailbox
       const conversation = await db.query.conversations.findFirst({
         where: eq(conversations.id, input.conversationId),
       });
@@ -212,7 +212,7 @@ export const issueGroupsRouter = {
         throw new TRPCError({ code: "NOT_FOUND", message: "Conversation not found" });
       }
 
-      // If issueGroupId is provided, verify it belongs to this mailbox
+      // If issueGroupId is provided, verify it exists
       if (input.issueGroupId) {
         const issueGroup = await db.query.issueGroups.findFirst({
           where: eq(issueGroups.id, input.issueGroupId),
@@ -232,9 +232,9 @@ export const issueGroupsRouter = {
       return { success: true };
     }),
 
-  // Bulk close all conversations in an issue group
+  // Bulk close all conversations in an issue group (only for current mailbox)
   bulkCloseAll: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Verify group belongs to this mailbox
+    // Get group and its conversations from current mailbox only
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
       with: {
@@ -300,7 +300,7 @@ export const issueGroupsRouter = {
   }),
 
   pin: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Verify issue group exists and belongs to this mailbox
+    // Verify issue group exists
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
     });

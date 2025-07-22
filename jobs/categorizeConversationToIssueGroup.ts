@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { conversationMessages } from "@/db/schema/conversationMessages";
@@ -21,7 +21,11 @@ const getConversationContent = (conversationData: {
 
   const userMessages = conversationData.messages
     .filter((msg) => msg.role === "user")
-    .map((msg) => msg.cleanedUpText || "")
+    .map((msg) => {
+      if (!msg.cleanedUpText) return "";
+      // cleanedUpText is already decrypted by Drizzle's custom type
+      return msg.cleanedUpText;
+    })
     .filter(Boolean);
 
   const contentParts = [];
@@ -103,15 +107,21 @@ Remember: It's better to return null than to force a poor match.`,
 };
 
 export const categorizeConversationToIssueGroup = async ({ messageId }: { messageId: number }) => {
+  // First get the conversationId from the message
+  const message = await db.query.conversationMessages.findFirst({
+    where: eq(conversationMessages.id, messageId),
+    columns: {
+      conversationId: true,
+    },
+  });
+
+  if (!message) {
+    throw new Error(`Message with id ${messageId} not found`);
+  }
+
   const conversation = assertDefinedOrRaiseNonRetriableError(
     await db.query.conversations.findFirst({
-      where: inArray(
-        conversations.id,
-        db
-          .select({ id: conversationMessages.conversationId })
-          .from(conversationMessages)
-          .where(eq(conversationMessages.id, messageId)),
-      ),
+      where: eq(conversations.id, message.conversationId),
       with: {
         messages: {
           columns: {
