@@ -122,6 +122,11 @@ export const categorizeConversationToIssueGroup = async ({ messageId }: { messag
   const conversation = assertDefinedOrRaiseNonRetriableError(
     await db.query.conversations.findFirst({
       where: eq(conversations.id, message.conversationId),
+      columns: {
+        id: true,
+        subject: true,
+        issueGroupId: true,
+      },
       with: {
         messages: {
           columns: {
