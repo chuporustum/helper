@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowUpDown, Search, Users } from "lucide-react";
+import { ArrowUpDown, Plus, Search, Users } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useIsMobile } from "@/components/hooks/use-mobile";
 import { PageHeader } from "@/components/pageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,7 +19,6 @@ import { api } from "@/trpc/react";
 import { IssueGroupCard } from "./issueGroupCard";
 
 export default function CommonIssuesPage() {
-  const isMobile = useIsMobile();
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"frequency" | "recent">("frequency");
@@ -90,7 +89,7 @@ export default function CommonIssuesPage() {
   if (error) {
     return (
       <div className="flex flex-col h-full">
-        {isMobile && <PageHeader title="Common Issues" variant="mahogany" />}
+        <PageHeader title="Common Issues" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h3 className="text-lg font-medium">Error loading issue groups</h3>
@@ -103,46 +102,29 @@ export default function CommonIssuesPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {isMobile && <PageHeader title="Common Issues" variant="mahogany" />}
+      <PageHeader title="Common Issues">
+        <Input
+          placeholder="Search common issues..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full h-10 rounded-full text-sm"
+          iconsPrefix={<Search className="ml-1 h-4 w-4 text-foreground" />}
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="gap-2">
+              <ArrowUpDown className="h-4 w-4" />
+              {sortBy === "frequency" ? "Frequency" : "Recent"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setSortBy("frequency")}>Sort by Frequency</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortBy("recent")}>Sort by Recent</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="border-b">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h1 className="text-2xl font-semibold">Common Issues</h1>
-              </div>
-
-              <div className="flex-1 flex justify-center px-8">
-                <div className="relative w-full max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder={`Search ${data?.groups.length || 0} issues`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 flex justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="gap-2">
-                      <ArrowUpDown className="h-4 w-4" />
-                      {sortBy === "frequency" ? "Frequency" : "Recent"}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setSortBy("frequency")}>Sort by Frequency</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSortBy("recent")}>Sort by Recent</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="p-4 pl-6 space-y-4">
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -166,9 +148,16 @@ export default function CommonIssuesPage() {
               <Users className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium">{searchQuery ? "No issues found" : "No issue groups yet"}</h3>
               <p className="mt-2 text-muted-foreground">
-                {searchQuery
-                  ? "Try adjusting your search terms"
-                  : "Issue groups will appear here as conversations are automatically clustered by topic."}
+                {searchQuery ? (
+                  "Try adjusting your search terms"
+                ) : (
+                  <Button variant="bright" className="mt-4" asChild>
+                    <Link href="/settings/common-issues">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create in settings
+                    </Link>
+                  </Button>
+                )}
               </p>
             </div>
           ) : (

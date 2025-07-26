@@ -2,14 +2,14 @@
 
 import {
   BarChart,
+  Bookmark,
   BookOpen,
   ChevronLeft,
-  GitBranch,
   Inbox,
+  Layers,
   Link as LinkIcon,
   MessageSquareText,
   MonitorSmartphone,
-  Pin,
   Settings as SettingsIcon,
   Ticket,
   User,
@@ -44,7 +44,7 @@ declare global {
 const settingsItems = [
   { label: "Knowledge", id: "knowledge", icon: BookOpen },
   { label: "Team", id: "team", icon: Users },
-  { label: "Common Issues", id: "common-issues", icon: GitBranch },
+  { label: "Common Issues", id: "common-issues", icon: Layers },
   { label: "Customers", id: "customers", icon: UserPlus },
   { label: "In-App Chat", id: "in-app-chat", icon: MonitorSmartphone },
   { label: "Integrations", id: "integrations", icon: LinkIcon },
@@ -166,52 +166,21 @@ export function AppSidebar() {
                       <SidebarMenuBadge>{openCounts.conversations}</SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarMenu>
                   {!issueGroupsError && (
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild isActive={pathname === `/common-issues`} tooltip="Common issues">
                         <Link href={`/common-issues`} onClick={handleItemClick}>
-                          <GitBranch className="size-4" />
+                          <Layers className="size-4" />
                           <span className="group-data-[collapsible=icon]:hidden">Common issues</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
-                </SidebarMenu>
-              </SidebarGroup>
-
-              {/* Pinned Issues Section */}
-              {!issueGroupsError && pinnedIssues && pinnedIssues.groups.length > 0 && (
-                <SidebarGroup>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton className="text-xs font-medium text-muted-foreground pointer-events-none">
-                        <Pin className="size-3" />
-                        <span className="group-data-[collapsible=icon]:hidden">Pinned Issues</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    {pinnedIssues.groups.slice(0, 5).map((group) => (
-                      <SidebarMenuItem key={group.id}>
-                        <SidebarMenuButton asChild tooltip={group.title}>
-                          <Link href={`/all?issueGroupId=${group.id}`} onClick={handleItemClick} className="text-xs">
-                            <Ticket className="size-3" />
-                            <span className="group-data-[collapsible=icon]:hidden truncate text-xs leading-tight">
-                              {group.title.replace(/^\d+\s+/, "").length > 25
-                                ? `${group.title.replace(/^\d+\s+/, "").substring(0, 25)}...`
-                                : group.title.replace(/^\d+\s+/, "")}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {group.openCount > 0 && (
-                          <SidebarMenuBadge className="text-xs">{group.openCount}</SidebarMenuBadge>
-                        )}
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroup>
-              )}
-
-              <SidebarGroup>
-                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={pathname === `/saved-replies`} tooltip="Saved replies">
                       <Link href={`/saved-replies`} onClick={handleItemClick}>
@@ -222,6 +191,33 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroup>
+
+              {!issueGroupsError && pinnedIssues && pinnedIssues.groups.length > 0 && (
+                <SidebarGroup>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton className="text-xs font-medium text-sidebar-foreground/50 pointer-events-none">
+                        Pinned issues
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {pinnedIssues.groups.slice(0, 5).map((group) => (
+                      <SidebarMenuItem key={group.id}>
+                        <SidebarMenuButton asChild tooltip={group.title}>
+                          <Link href={`/all?issueGroupId=${group.id}`} onClick={handleItemClick}>
+                            <Bookmark className="size-3" />
+                            <span className="group-data-[collapsible=icon]:hidden truncate leading-tight">
+                              {group.title.replace(/^\d+\s+/, "").length > 25
+                                ? `${group.title.replace(/^\d+\s+/, "").substring(0, 25)}...`
+                                : group.title.replace(/^\d+\s+/, "")}
+                            </span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {group.openCount > 0 && <SidebarMenuBadge>{group.openCount}</SidebarMenuBadge>}
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroup>
+              )}
             </div>
             <div className="mt-auto">
               <SidebarGroup>

@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranch, Plus, X } from "lucide-react";
+import { Layers } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { useConversationContext } from "./conversationContext";
@@ -28,7 +28,7 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueDescription, setNewIssueDescription] = useState("");
 
-  const { data: issueGroups } = api.mailbox.issueGroups.listAll.useQuery();
+  const { data: issueGroups, isLoading } = api.mailbox.issueGroups.listAll.useQuery();
   const utils = api.useUtils();
 
   const assignMutation = api.mailbox.issueGroups.assignConversation.useMutation({
@@ -63,8 +63,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
     },
   });
 
-  const currentIssue = issueGroups?.groups.find((group) => group.id === initialIssueGroupId);
-
   const handleAssign = (issueGroupId: string) => {
     if (issueGroupId === "create-new") {
       setCreateDialogOpen(true);
@@ -82,39 +80,25 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
     }
   };
 
-  const handleClear = () => {
-    setSelectedIssueId("none");
-    if (conversationInfo?.id) {
-      assignMutation.mutate({
-        conversationId: conversationInfo.id,
-        issueGroupId: null,
-      });
-    }
-  };
+  if (isLoading) return null;
 
   if (!issueGroups?.groups.length) {
     return <span className="text-muted-foreground text-sm">No issues available</span>;
   }
 
   return (
-    <div className="flex items-center gap-2 min-w-0">
+    <>
       <Select value={selectedIssueId} onValueChange={handleAssign}>
-        <SelectTrigger className="w-full h-8 text-sm min-w-0">
+        <SelectTrigger variant="bare" className="w-full min-w-0 hover:underline" hideArrow>
           <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-            <GitBranch className="h-3 w-3 flex-shrink-0" />
+            <Layers className="h-4 w-4 flex-shrink-0" />
             <SelectValue placeholder="Assign to issue..." className="truncate min-w-0" />
           </div>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">
-            <span className="text-muted-foreground text-sm">No issue assigned</span>
-          </SelectItem>
-          <SelectItem value="create-new">
-            <div className="flex items-center gap-1">
-              <Plus className="h-3 w-3" />
-              <span className="text-sm">Create new issue</span>
-            </div>
-          </SelectItem>
+          <SelectItem value="none">None</SelectItem>
+          <SelectItem value="create-new">Create new issue</SelectItem>
+          <SelectSeparator />
           {issueGroups.groups.map((group) => (
             <SelectItem key={group.id} value={group.id.toString()}>
               <span className="text-sm truncate block max-w-[200px]" title={group.title}>
@@ -124,19 +108,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
           ))}
         </SelectContent>
       </Select>
-
-      {currentIssue && (
-        <Button
-          variant="ghost"
-          size="sm"
-          iconOnly
-          onClick={handleClear}
-          className="h-8 w-8 flex-shrink-0"
-          title="Clear issue assignment"
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
@@ -194,6 +165,6 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };

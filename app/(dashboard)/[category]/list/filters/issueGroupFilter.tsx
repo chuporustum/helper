@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react";
+import { Layers } from "lucide-react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +25,8 @@ export const IssueGroupFilter = memo(function IssueGroupFilter({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant={issueGroupId ? "bright" : "outlined_subtle"} className="whitespace-nowrap">
-          <GitBranch className="h-4 w-4 mr-2" />
-          {selectedGroup ? selectedGroup.title : "Issue Group"}
+          <Layers className="h-4 w-4 mr-2" />
+          {selectedGroup ? selectedGroup.title : "Common issue"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-w-xs">

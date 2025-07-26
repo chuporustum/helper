@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, GitBranch, Link, MonitorSmartphone, Settings as SettingsIcon, UserPlus, Users } from "lucide-react";
+import { BookOpen, Layers, Link, MonitorSmartphone, Settings as SettingsIcon, UserPlus, Users } from "lucide-react";
 import { useParams } from "next/navigation";
 import Loading from "@/app/(dashboard)/loading";
 import { FileUploadProvider } from "@/components/fileUploadContext";
@@ -45,7 +45,7 @@ export default function TabsPage() {
     {
       label: "Common Issues",
       id: "common-issues",
-      icon: GitBranch,
+      icon: Layers,
       content: <CommonIssuesSetting />,
     },
     {
