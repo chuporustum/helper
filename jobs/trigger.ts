@@ -23,7 +23,6 @@ const events = {
       "mergeSimilarConversations",
       "publishNewConversationEvent",
       "notifyVipMessage",
-      "buildIssueGroups",
       "categorizeConversationToIssueGroup",
     ],
   },

@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusCircle, Trash } from "lucide-react";
+import { Edit2, PlusCircle, Trash } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/confirmationDialog";
@@ -76,6 +76,7 @@ const CommonIssuesSetting = () => {
   const [newIssueDescription, setNewIssueDescription] = useState("");
   const [showNewIssueForm, setShowNewIssueForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingIssue, setEditingIssue] = useState<{ id: number; title: string; description: string } | null>(null);
 
   const utils = api.useUtils();
 
@@ -113,6 +114,17 @@ const CommonIssuesSetting = () => {
     },
   });
 
+  const updateMutation = api.mailbox.issueGroups.update.useMutation({
+    onSuccess: () => {
+      utils.mailbox.issueGroups.listAll.invalidate();
+      setEditingIssue(null);
+      toast.success("Common issue updated");
+    },
+    onError: (error) => {
+      toast.error("Error updating common issue", { description: error.message });
+    },
+  });
+
   const handleCreateIssue = async () => {
     if (!newIssueTitle.trim()) return;
     await createMutation.mutateAsync({
@@ -124,6 +136,15 @@ const CommonIssuesSetting = () => {
   const handleDeleteIssue = async (id: number) => {
     await deleteMutation.mutateAsync({
       id,
+    });
+  };
+
+  const handleUpdateIssue = async () => {
+    if (!editingIssue || !editingIssue.title.trim()) return;
+    await updateMutation.mutateAsync({
+      id: editingIssue.id,
+      title: editingIssue.title.trim(),
+      description: editingIssue.description.trim() || undefined,
     });
   };
 
@@ -160,26 +181,57 @@ const CommonIssuesSetting = () => {
         ) : (
           <>
             {filteredIssueGroups.map((group) => (
-              <div key={group.id} className="py-4 flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{group.title}</div>
-                  {group.description && (
-                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{group.description}</div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {group.conversationCount} conversation{group.conversationCount !== 1 ? "s" : ""}
+              <div key={group.id} className="py-4">
+                {editingIssue?.id === group.id ? (
+                  <CommonIssueEditForm
+                    title={editingIssue.title}
+                    description={editingIssue.description}
+                    onTitleChange={(title) => setEditingIssue({ ...editingIssue, title })}
+                    onDescriptionChange={(description) => setEditingIssue({ ...editingIssue, description })}
+                    onSubmit={handleUpdateIssue}
+                    onCancel={() => setEditingIssue(null)}
+                    isLoading={updateMutation.isPending}
+                  />
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{group.title}</div>
+                      {group.description && (
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{group.description}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {group.conversationCount} conversation{group.conversationCount !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        iconOnly
+                        onClick={() =>
+                          setEditingIssue({
+                            id: group.id,
+                            title: group.title,
+                            description: group.description || "",
+                          })
+                        }
+                      >
+                        <Edit2 className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <ConfirmationDialog
+                        message="Are you sure you want to delete this common issue? All conversations will be unassigned from this group."
+                        onConfirm={() => handleDeleteIssue(group.id)}
+                        confirmLabel="Yes, delete"
+                      >
+                        <Button variant="ghost" size="sm" iconOnly>
+                          <Trash className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </ConfirmationDialog>
+                    </div>
                   </div>
-                </div>
-                <ConfirmationDialog
-                  message="Are you sure you want to delete this common issue? All conversations will be unassigned from this group."
-                  onConfirm={() => handleDeleteIssue(group.id)}
-                  confirmLabel="Yes, delete"
-                >
-                  <Button variant="ghost" size="sm" iconOnly>
-                    <Trash className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </ConfirmationDialog>
+                )}
               </div>
             ))}
           </>

@@ -1,5 +1,6 @@
 import { Layers } from "lucide-react";
 import { memo } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,7 +18,16 @@ export const IssueGroupFilter = memo(function IssueGroupFilter({
   issueGroupId: number | null;
   onChange: (issueGroupId: number | null) => void;
 }) {
-  const { data: issueGroups, isLoading } = api.mailbox.issueGroups.listAll.useQuery();
+  const {
+    data: issueGroups,
+    isLoading,
+    isError,
+    error,
+  } = api.mailbox.issueGroups.listAll.useQuery(undefined, {
+    onError: (err) => {
+      toast.error("Failed to load issue groups", { description: err.message });
+    },
+  });
 
   const selectedGroup = issueGroups?.groups.find((group) => group.id === issueGroupId);
 
@@ -32,13 +42,30 @@ export const IssueGroupFilter = memo(function IssueGroupFilter({
       <DropdownMenuContent align="start" className="max-w-xs">
         <DropdownMenuRadioGroup
           value={issueGroupId?.toString() ?? "all"}
-          onValueChange={(value) => onChange(value === "all" ? null : parseInt(value))}
+          onValueChange={(value) => {
+            if (value === "all") {
+              onChange(null);
+            } else {
+              const numValue = parseInt(value, 10);
+              if (!isNaN(numValue)) {
+                onChange(numValue);
+              }
+            }
+          }}
           className="flex flex-col"
         >
           <DropdownMenuRadioItem value="all">All conversations</DropdownMenuRadioItem>
           {isLoading ? (
             <DropdownMenuRadioItem value="loading" disabled>
               Loading...
+            </DropdownMenuRadioItem>
+          ) : isError ? (
+            <DropdownMenuRadioItem value="error" disabled>
+              <span className="text-red-500">Failed to load issue groups</span>
+            </DropdownMenuRadioItem>
+          ) : issueGroups?.groups.length === 0 ? (
+            <DropdownMenuRadioItem value="empty" disabled>
+              No issue groups found
             </DropdownMenuRadioItem>
           ) : (
             issueGroups?.groups.map((group) => (

@@ -18,14 +18,12 @@ export const issueGroupsRouter = {
     .query(async ({ ctx, input }) => {
       const { limit, offset } = input;
 
-      // Get current date boundaries for time-based counting
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfWeek = new Date(startOfToday);
       startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      // Get issue groups with conversation counts (filtered by mailbox)
       const groupsWithCounts = await db
         .select({
           id: issueGroups.id,
@@ -143,7 +141,6 @@ export const issueGroupsRouter = {
     .mutation(async ({ input }) => {
       const { id, title, description } = input;
 
-      // Verify issue group exists (issue groups are global entities)
       const existingGroup = await db.query.issueGroups.findFirst({
         where: eq(issueGroups.id, id),
       });
@@ -167,7 +164,6 @@ export const issueGroupsRouter = {
     }),
 
   delete: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
-    // Verify group exists and get conversation count for current mailbox only
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
       with: {
@@ -181,14 +177,11 @@ export const issueGroupsRouter = {
       throw new TRPCError({ code: "NOT_FOUND", message: "Issue group not found" });
     }
 
-    // Use transaction to ensure atomicity
     await db.transaction(async (tx) => {
-      // Only unassign conversations from current mailbox
       if (group.conversations.length > 0) {
         await tx.update(conversations).set({ issueGroupId: null }).where(eq(conversations.issueGroupId, input.id));
       }
 
-      // Delete the group since all conversations are unassigned
       await tx.delete(issueGroups).where(eq(issueGroups.id, input.id));
     });
 
@@ -203,7 +196,6 @@ export const issueGroupsRouter = {
       }),
     )
     .mutation(async ({ input }) => {
-      // Verify conversation exists and belongs to this mailbox
       const conversation = await db.query.conversations.findFirst({
         where: eq(conversations.id, input.conversationId),
       });
@@ -212,7 +204,6 @@ export const issueGroupsRouter = {
         throw new TRPCError({ code: "NOT_FOUND", message: "Conversation not found" });
       }
 
-      // If issueGroupId is provided, verify it exists
       if (input.issueGroupId) {
         const issueGroup = await db.query.issueGroups.findFirst({
           where: eq(issueGroups.id, input.issueGroupId),
@@ -223,7 +214,6 @@ export const issueGroupsRouter = {
         }
       }
 
-      // Update the conversation
       await db
         .update(conversations)
         .set({ issueGroupId: input.issueGroupId })
@@ -231,40 +221,6 @@ export const issueGroupsRouter = {
 
       return { success: true };
     }),
-
-  // Bulk close all conversations in an issue group (only for current mailbox)
-  bulkCloseAll: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Get group and its conversations from current mailbox only
-    const group = await db.query.issueGroups.findFirst({
-      where: eq(issueGroups.id, input.id),
-      with: {
-        conversations: {
-          columns: {
-            id: true,
-            status: true,
-          },
-        },
-      },
-    });
-
-    if (!group) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Issue group not found" });
-    }
-
-    const openConversationIds = group.conversations.filter((c) => c.status === "open").map((c) => c.id);
-
-    if (openConversationIds.length === 0) {
-      return { updatedCount: 0 };
-    }
-
-    await triggerEvent("conversations/bulk-update", {
-      userId: ctx.user.id,
-      conversationFilter: openConversationIds,
-      status: "closed",
-    });
-
-    return { updatedCount: openConversationIds.length };
-  }),
 
   pinnedList: mailboxProcedure.query(async ({ ctx }) => {
     const userProfile = await db.query.userProfiles.findFirst({
@@ -279,7 +235,6 @@ export const issueGroupsRouter = {
       return { groups: [] };
     }
 
-    // pinnedIssueGroupIds is properly typed as number[] in the schema
     const pinnedIds = userProfile.pinnedIssueGroupIds;
 
     const pinnedGroups = await db
@@ -300,7 +255,6 @@ export const issueGroupsRouter = {
   }),
 
   pin: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Verify issue group exists
     const group = await db.query.issueGroups.findFirst({
       where: eq(issueGroups.id, input.id),
     });
@@ -309,14 +263,12 @@ export const issueGroupsRouter = {
       throw new TRPCError({ code: "NOT_FOUND", message: "Issue group not found" });
     }
 
-    // Get current user profile
     const userProfile = await db.query.userProfiles.findFirst({
       where: eq(userProfiles.id, ctx.user.id),
     });
 
     const currentPinned = Array.isArray(userProfile?.pinnedIssueGroupIds) ? userProfile.pinnedIssueGroupIds : [];
 
-    // Add to pinned if not already there
     if (!currentPinned.includes(input.id)) {
       await db
         .update(userProfiles)
@@ -330,14 +282,12 @@ export const issueGroupsRouter = {
   }),
 
   unpin: mailboxProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
-    // Get current user profile
     const userProfile = await db.query.userProfiles.findFirst({
       where: eq(userProfiles.id, ctx.user.id),
     });
 
     const currentPinned = Array.isArray(userProfile?.pinnedIssueGroupIds) ? userProfile.pinnedIssueGroupIds : [];
 
-    // Remove from pinned
     const updatedPinned = currentPinned.filter((id) => id !== input.id);
 
     await db

@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { AccountDropdown } from "@/app/(dashboard)/accountDropdown";
 import { Avatar } from "@/components/ui/avatar";
@@ -54,12 +54,15 @@ const settingsItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const previousAppUrlRef = useRef<string | null>(null);
   const { data: openCounts } = api.mailbox.openCount.useQuery();
   const { data: mailbox } = api.mailbox.get.useQuery();
   const { data: pinnedIssues, error: issueGroupsError } = api.mailbox.issueGroups.pinnedList.useQuery();
   const isSettingsPage = pathname.startsWith(`/settings`);
   const { isMobile, setOpenMobile } = useSidebar();
+
+  const currentIssueGroupId = searchParams.get("issueGroupId");
 
   const handleItemClick = () => {
     if (isMobile) {
@@ -156,7 +159,7 @@ export function AppSidebar() {
                     )}
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === `/all`} tooltip="All">
+                    <SidebarMenuButton asChild isActive={pathname === `/all` && !currentIssueGroupId} tooltip="All">
                       <Link href={`/all`} onClick={handleItemClick}>
                         <Inbox className="size-4" />
                         <span className="group-data-[collapsible=icon]:hidden">All</span>
@@ -202,7 +205,11 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                     {pinnedIssues.groups.slice(0, 5).map((group) => (
                       <SidebarMenuItem key={group.id}>
-                        <SidebarMenuButton asChild tooltip={group.title}>
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={group.title}
+                          isActive={pathname === `/all` && currentIssueGroupId === group.id.toString()}
+                        >
                           <Link href={`/all?issueGroupId=${group.id}`} onClick={handleItemClick}>
                             <Bookmark className="size-3" />
                             <span className="group-data-[collapsible=icon]:hidden truncate leading-tight">
