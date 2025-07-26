@@ -4,7 +4,6 @@ import { z } from "zod";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { db } from "@/db/client";
 import { conversations, issueGroups, mailboxes, platformCustomers, userProfiles } from "@/db/schema";
-import { triggerEvent } from "@/jobs/trigger";
 import { mailboxProcedure } from "./procedure";
 
 export const issueGroupsRouter = {

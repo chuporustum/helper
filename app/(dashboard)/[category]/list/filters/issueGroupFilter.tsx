@@ -1,6 +1,5 @@
 import { Layers } from "lucide-react";
 import { memo } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,16 +17,7 @@ export const IssueGroupFilter = memo(function IssueGroupFilter({
   issueGroupId: number | null;
   onChange: (issueGroupId: number | null) => void;
 }) {
-  const {
-    data: issueGroups,
-    isLoading,
-    isError,
-    error,
-  } = api.mailbox.issueGroups.listAll.useQuery(undefined, {
-    onError: (err) => {
-      toast.error("Failed to load issue groups", { description: err.message });
-    },
-  });
+  const { data: issueGroups, isLoading, isError } = api.mailbox.issueGroups.listAll.useQuery();
 
   const selectedGroup = issueGroups?.groups.find((group) => group.id === issueGroupId);
 

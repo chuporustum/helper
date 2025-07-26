@@ -32,11 +32,17 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
   const utils = api.useUtils();
 
   const assignMutation = api.mailbox.issueGroups.assignConversation.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Update the selected issue ID only after successful mutation
+      const newIssueId = variables.issueGroupId;
+      setSelectedIssueId(newIssueId === null ? "none" : newIssueId.toString());
       toast.success("Issue assignment updated successfully");
       utils.mailbox.conversations.get.invalidate({ conversationSlug });
     },
     onError: (error) => {
+      // Revert to the previous state on error
+      const currentIssueId = initialIssueGroupId;
+      setSelectedIssueId(currentIssueId === null ? "none" : currentIssueId.toString());
       toast.error(error.message);
     },
   });
@@ -55,7 +61,7 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
           conversationId: conversationInfo.id,
           issueGroupId: newGroup.id,
         });
-        setSelectedIssueId(newGroup.id.toString());
+        // Don't set selectedIssueId here - let the assignMutation.onSuccess handle it
       }
     },
     onError: (error) => {
@@ -68,10 +74,19 @@ export const IssueAssignButton = ({ initialIssueGroupId }: { initialIssueGroupId
       setCreateDialogOpen(true);
       return;
     }
-    setSelectedIssueId(issueGroupId);
 
-    const issueId = issueGroupId === "none" ? null : parseInt(issueGroupId);
+    // Parse and validate the issue ID
+    let issueId: number | null = null;
+    if (issueGroupId !== "none") {
+      const parsed = parseInt(issueGroupId, 10);
+      if (isNaN(parsed)) {
+        toast.error("Invalid issue group ID");
+        return;
+      }
+      issueId = parsed;
+    }
 
+    // Don't update the state optimistically - wait for mutation success
     if (conversationInfo?.id) {
       assignMutation.mutate({
         conversationId: conversationInfo.id,

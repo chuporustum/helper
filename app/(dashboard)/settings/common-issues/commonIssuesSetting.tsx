@@ -140,7 +140,7 @@ const CommonIssuesSetting = () => {
   };
 
   const handleUpdateIssue = async () => {
-    if (!editingIssue || !editingIssue.title.trim()) return;
+    if (!editingIssue?.title.trim()) return;
     await updateMutation.mutateAsync({
       id: editingIssue.id,
       title: editingIssue.title.trim(),
