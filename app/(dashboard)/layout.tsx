@@ -1,6 +1,7 @@
 import "@/app/globals.css";
 import type { Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Suspense } from "react";
 import { AppSidebar } from "@/app/(dashboard)/appSidebar";
 import InboxClientLayout from "@/app/(dashboard)/clientLayout";
 import { StandaloneDisplayIntegration } from "@/app/(dashboard)/standaloneDisplayIntegration";
@@ -43,7 +44,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SidebarProvider>
             <InboxClientLayout>
               <div className="flex h-svh w-full">
-                <AppSidebar />
+                <Suspense>
+                  <AppSidebar />
+                </Suspense>
                 <main className="flex-1 min-w-0">{children}</main>
               </div>
             </InboxClientLayout>
