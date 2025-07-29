@@ -1,13 +1,15 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { htmlToText } from "html-to-text";
-import { corsResponse, withWidgetAuth } from "@/app/api/widget/utils";
+import { ConversationDetails, updateConversationParamsSchema, UpdateConversationResult } from "@helperai/client";
+import { corsOptions, corsResponse, withWidgetAuth } from "@/app/api/widget/utils";
 import { db } from "@/db/client";
 import { conversationMessages, conversations, files, MessageMetadata } from "@/db/schema";
 import { getFirstName } from "@/lib/auth/authUtils";
 import { updateConversation } from "@/lib/data/conversation";
 import { formatAttachments } from "@/lib/data/files";
 import { getBasicProfileById } from "@/lib/data/user";
-import { ConversationDetails, updateConversationParamsSchema, UpdateConversationResult } from "@/packages/client/dist";
+
+export const OPTIONS = () => corsOptions("GET", "PATCH");
 
 export const GET = withWidgetAuth<{ slug: string }>(async ({ context: { params }, request }, { session }) => {
   const { slug } = await params;
