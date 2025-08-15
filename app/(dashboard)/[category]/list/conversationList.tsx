@@ -209,6 +209,13 @@ export const List = () => {
     });
   });
 
+  // Handle conversation marked as read real-time event
+  useRealtimeEvent(conversationsListChannelId(), "conversation.read", () => {
+    // Invalidate conversation list and unread count to refresh UI
+    utils.mailbox.conversations.list.invalidate();
+    utils.mailbox.unreadCount.invalidate();
+  });
+
   const conversationsText = allConversationsSelected
     ? "all matching conversations"
     : `${selectedConversations.length} conversation${selectedConversations.length === 1 ? "" : "s"}`;

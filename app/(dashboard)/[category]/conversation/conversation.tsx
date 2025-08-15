@@ -38,6 +38,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBreakpoint } from "@/components/useBreakpoint";
+import { useSession } from "@/components/useSession";
 import type { serializeMessage } from "@/lib/data/conversationMessage";
 import { conversationChannelId } from "@/lib/realtime/channels";
 import { useRealtimeEvent } from "@/lib/realtime/hooks";
@@ -393,6 +394,25 @@ const ConversationContent = () => {
   const { conversationSlug, data: conversationInfo, isPending, error } = useConversationContext();
   const utils = api.useUtils();
   const { input } = useConversationsListInput();
+  const { user } = useSession() ?? {};
+  const markAsRead = api.mailbox.conversations.markAsRead.useMutation();
+
+  // Auto-mark as read when conversation is opened
+  useEffect(() => {
+    if (conversationInfo?.id && conversationInfo.assignedToId === user?.id) {
+      markAsRead.mutate(
+        { conversationSlug },
+        {
+          onSuccess: () => {
+            // Invalidate conversation list to update unread indicators
+            utils.mailbox.conversations.list.invalidate();
+            // Also invalidate unread count to update sidebar
+            utils.mailbox.unreadCount.invalidate();
+          },
+        },
+      );
+    }
+  }, [conversationInfo?.id, conversationInfo?.assignedToId, user?.id, conversationSlug, markAsRead, utils]);
 
   useRealtimeEvent(conversationChannelId(conversationSlug), "conversation.updated", (event) => {
     utils.mailbox.conversations.get.setData({ conversationSlug }, (data) => (data ? { ...data, ...event.data } : null));
