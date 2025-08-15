@@ -78,9 +78,9 @@ export const ConversationSearchBar = ({
 
   const handleUnreadFilterToggle = useCallback(() => {
     setId(null);
-    setSearchParams({ 
+    setSearchParams({
       hasUnreadReplies: searchParams.hasUnreadReplies ? null : true,
-      status: null // Reset status filter when filtering by unread
+      status: null, // Reset status filter when filtering by unread
     });
   }, [setId, setSearchParams, searchParams.hasUnreadReplies]);
 
@@ -180,9 +180,7 @@ export const ConversationSearchBar = ({
             onClick={handleUnreadFilterToggle}
             className={cn(
               "text-sm cursor-pointer hover:text-foreground transition-colors",
-              searchParams.hasUnreadReplies 
-                ? "text-blue-600 font-medium" 
-                : "text-muted-foreground"
+              searchParams.hasUnreadReplies ? "text-blue-600 font-medium" : "text-muted-foreground",
             )}
           >
             {unreadCount[input.category]} unread

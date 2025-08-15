@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMediaQuery } from "react-responsive";
 import { useStickToBottom } from "use-stick-to-bottom";
 import {
@@ -397,22 +397,27 @@ const ConversationContent = () => {
   const { user } = useSession() ?? {};
   const markAsRead = api.mailbox.conversations.markAsRead.useMutation();
 
-  // Auto-mark as read when conversation is opened
+  // Keep track of last-marked conversation to avoid duplicate mutations
+  const lastMarkedSlugRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (conversationInfo?.id && conversationInfo.assignedToId === user?.id) {
-      markAsRead.mutate(
-        { conversationSlug },
-        {
-          onSuccess: () => {
-            // Invalidate conversation list to update unread indicators
-            utils.mailbox.conversations.list.invalidate();
-            // Also invalidate unread count to update sidebar
-            utils.mailbox.unreadCount.invalidate();
-          },
+    if (!conversationSlug) return;
+    if (!conversationInfo?.id || conversationInfo.assignedToId !== user?.id) return;
+
+    // Avoid duplicate calls (e.g., StrictMode double invoke)
+    if (lastMarkedSlugRef.current === conversationSlug) return;
+
+    markAsRead.mutate(
+      { conversationSlug },
+      {
+        onSuccess: () => {
+          lastMarkedSlugRef.current = conversationSlug;
+          void utils.mailbox.conversations.list.invalidate(input);
+          void utils.mailbox.unreadCount.invalidate();
         },
-      );
-    }
-  }, [conversationInfo?.id, conversationInfo?.assignedToId, user?.id, conversationSlug, markAsRead, utils]);
+      },
+    );
+  }, [conversationInfo?.id, conversationInfo?.assignedToId, user?.id, conversationSlug, markAsRead, utils, input]);
 
   useRealtimeEvent(conversationChannelId(conversationSlug), "conversation.updated", (event) => {
     utils.mailbox.conversations.get.setData({ conversationSlug }, (data) => (data ? { ...data, ...event.data } : null));

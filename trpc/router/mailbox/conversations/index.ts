@@ -4,7 +4,13 @@ import { z } from "zod";
 import { takeUniqueOrThrow } from "@/components/utils/arrays";
 import { assertDefined } from "@/components/utils/assert";
 import { db } from "@/db/client";
-import { conversationAgentReadStatus, conversationFollowers, conversationMessages, conversations, files } from "@/db/schema";
+import {
+  conversationAgentReadStatus,
+  conversationFollowers,
+  conversationMessages,
+  conversations,
+  files,
+} from "@/db/schema";
 import { authUsers } from "@/db/supabaseSchema/auth";
 import { triggerEvent } from "@/jobs/trigger";
 import { generateDraftResponse } from "@/lib/ai/chat";
@@ -16,8 +22,8 @@ import { createReply, getLastAiGeneratedDraft, serializeResponseAiDraft } from "
 import { getGmailSupportEmail } from "@/lib/data/gmailSupportEmail";
 import { findSimilarConversations } from "@/lib/data/retrieval";
 import { env } from "@/lib/env";
-import { publishToRealtime } from "@/lib/realtime/publish";
 import { conversationsListChannelId } from "@/lib/realtime/channels";
+import { publishToRealtime } from "@/lib/realtime/publish";
 import { mailboxProcedure } from "../procedure";
 import { filesRouter } from "./files";
 import { githubRouter } from "./github";
@@ -341,7 +347,6 @@ export const conversationsRouter = {
         set: { lastReadAt: new Date(), updatedAt: new Date() },
       });
 
-    // Broadcast real-time update to refresh conversation list
     await publishToRealtime({
       channel: conversationsListChannelId(),
       event: "conversation.read",

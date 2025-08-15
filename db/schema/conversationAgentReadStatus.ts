@@ -8,12 +8,13 @@ export const conversationAgentReadStatus = pgTable(
   {
     ...withTimestamps,
     id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity(),
-    conversationId: bigint("conversation_id", { mode: "number" }).notNull(),
+    conversationId: bigint("conversation_id", { mode: "number" })
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
     agentClerkId: text("agent_clerk_id").notNull(),
     lastReadAt: timestamp("last_read_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    index("conversation_agent_read_status_conversation_id_idx").on(table.conversationId),
     index("conversation_agent_read_status_agent_clerk_id_idx").on(table.agentClerkId),
     index("conversation_agent_read_status_conversation_agent_idx").on(table.conversationId, table.agentClerkId),
     unique("conversation_agent_read_status_conversation_agent_unique").on(table.conversationId, table.agentClerkId),

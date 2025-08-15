@@ -19,7 +19,14 @@ import {
 } from "drizzle-orm";
 import { memoize } from "lodash-es";
 import { db } from "@/db/client";
-import { conversationAgentReadStatus, conversationEvents, conversationMessages, conversations, mailboxes, platformCustomers } from "@/db/schema";
+import {
+  conversationAgentReadStatus,
+  conversationEvents,
+  conversationMessages,
+  conversations,
+  mailboxes,
+  platformCustomers,
+} from "@/db/schema";
 import { serializeConversation } from "@/lib/data/conversation";
 import { searchSchema } from "@/lib/data/conversation/searchSchema";
 import { getMetadataApiByMailbox } from "@/lib/data/mailboxMetadataApi";
@@ -181,7 +188,8 @@ export const searchConversations = async (
         mailboxes_platformcustomer: platformCustomers,
         recent_message_cleanedUpText: sql<string | null>`recent_message.cleaned_up_text`,
         recent_message_createdAt: sql<string | null>`recent_message.created_at`,
-        hasUnreadReplies: currentUserId ? sql<boolean>`
+        hasUnreadReplies: currentUserId
+          ? sql<boolean>`
           CASE 
             WHEN ${conversations.assignedToId} = ${currentUserId}
             AND ${conversations.lastUserEmailCreatedAt} > COALESCE(
@@ -193,8 +201,10 @@ export const searchConversations = async (
             THEN true 
             ELSE false 
           END
-        `.as('has_unread_replies') : sql<boolean>`false`.as('has_unread_replies'),
-        unreadCount: currentUserId ? sql<number>`
+        `.as("has_unread_replies")
+          : sql<boolean>`false`.as("has_unread_replies"),
+        unreadCount: currentUserId
+          ? sql<number>`
           CASE 
             WHEN ${conversations.assignedToId} = ${currentUserId}
             THEN (
@@ -211,7 +221,8 @@ export const searchConversations = async (
             )
             ELSE 0
           END
-        `.as('unread_count') : sql<number>`0`.as('unread_count')
+        `.as("unread_count")
+          : sql<number>`0`.as("unread_count"),
       })
       .from(conversations)
       .leftJoin(platformCustomers, eq(conversations.emailFrom, platformCustomers.email))

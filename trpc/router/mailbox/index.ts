@@ -2,7 +2,7 @@ import { TRPCError, type TRPCRouterRecord } from "@trpc/server";
 import { and, count, eq, isNotNull, isNull, SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { conversations, mailboxes, conversationAgentReadStatus } from "@/db/schema";
+import { conversationAgentReadStatus, conversations, mailboxes } from "@/db/schema";
 import { triggerEvent } from "@/jobs/trigger";
 import { getGuideSessionsForMailbox } from "@/lib/data/guide";
 import { getMailboxInfo } from "@/lib/data/mailbox";
@@ -53,7 +53,6 @@ export const mailboxRouter = {
           and(
             eq(conversations.status, "open"),
             isNull(conversations.mergedIntoId),
-            eq(conversations.assignedToId, ctx.user.id),
             sql`
               ${conversations.lastUserEmailCreatedAt} > COALESCE(
                 (SELECT last_read_at FROM ${conversationAgentReadStatus} 
@@ -62,16 +61,17 @@ export const mailboxRouter = {
                 ${conversations.createdAt}
               )
             `,
-            where
-          )
+            where,
+          ),
         );
       return result[0]?.count ?? 0;
     };
 
+    const userAssignedFilter = eq(conversations.assignedToId, ctx.user.id);
     const [all, mine, assigned] = await Promise.all([
-      countUnreadStatus(),
-      countUnreadStatus(eq(conversations.assignedToId, ctx.user.id)),
-      countUnreadStatus(isNotNull(conversations.assignedToId)),
+      countUnreadStatus(userAssignedFilter), // User's unread
+      countUnreadStatus(userAssignedFilter), // Same as 'all' for consistency  
+      countUnreadStatus(userAssignedFilter), // User's assigned unread (same as 'all')
     ]);
 
     return {

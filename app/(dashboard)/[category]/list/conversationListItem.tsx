@@ -17,15 +17,20 @@ import { highlightKeywords } from "./filters/highlightKeywords";
 
 const UnreadReplyIndicator = ({ count }: { count: number }) => {
   if (count === 0) return null;
-  
+
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 cursor-help"></span>
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 cursor-pointer hover:bg-yellow-600 transition-colors"
+            title={`${count} unread message${count === 1 ? "" : "s"}`}
+          ></span>
         </TooltipTrigger>
-        <TooltipContent>
-          <p>{count} unread message{count === 1 ? '' : 's'}</p>
+        <TooltipContent side="top" className="z-50 bg-black text-white p-2 rounded shadow-lg">
+          <p className="text-sm">
+            {count} unread message{count === 1 ? "" : "s"}
+          </p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -81,7 +86,8 @@ export const ConversationListItem = ({
     }
   }
 
-  const hasUnreadForCurrentUser = conversation.hasUnreadReplies && conversation.assignedToId === user?.id && conversation.unreadCount && conversation.unreadCount > 0;
+  const hasUnreadForCurrentUser =
+    conversation.hasUnreadReplies && conversation.assignedToId === user?.id && (conversation.unreadCount ?? 0) > 0;
 
   return (
     <div className="px-1 md:px-2">
@@ -91,7 +97,7 @@ export const ConversationListItem = ({
           isActive
             ? "bg-amber-50 dark:bg-white/5 border-l-4 border-l-amber-400"
             : "hover:bg-gray-50 dark:hover:bg-white/[0.02]",
-          hasUnreadForCurrentUser && "font-bold bg-blue-50/50 dark:bg-blue-950/20 border-l-2 border-l-blue-500"
+          hasUnreadForCurrentUser && "font-bold bg-blue-50/50 dark:bg-blue-950/20 border-l-2 border-l-blue-500",
         )}
       >
         <div className="flex items-start gap-4 px-2 md:px-4">
@@ -117,7 +123,7 @@ export const ConversationListItem = ({
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <p className={cn("text-muted-foreground truncate text-xs md:text-sm", hasUnreadForCurrentUser && "font-extrabold text-foreground")}>
+                  <p className="text-muted-foreground truncate text-xs md:text-sm">
                     {conversation.emailFrom ?? "Anonymous"}
                   </p>
                   {conversation.platformCustomer?.value &&
@@ -148,9 +154,7 @@ export const ConversationListItem = ({
                       assignedToAI={conversation.assignedToAI}
                     />
                   )}
-                  {hasUnreadForCurrentUser && (
-                    <UnreadReplyIndicator count={conversation.unreadCount ?? 0} />
-                  )}
+                  {hasUnreadForCurrentUser && <UnreadReplyIndicator count={conversation.unreadCount ?? 0} />}
                   <div className="text-muted-foreground text-[10px] md:text-xs">
                     {conversation.status === "closed" ? (
                       <HumanizedTime time={conversation.closedAt ?? conversation.updatedAt} titlePrefix="Closed on" />
@@ -166,7 +170,7 @@ export const ConversationListItem = ({
               </div>
               <div className="flex flex-col gap-2">
                 <p
-                  className={cn("font-medium text-foreground text-sm md:text-base", hasUnreadForCurrentUser && "font-extrabold text-black dark:text-white")}
+                  className="font-medium text-foreground text-sm md:text-base"
                   dangerouslySetInnerHTML={{ __html: highlightedSubject ?? "(no subject)" }}
                 />
                 {highlightedBody && (
