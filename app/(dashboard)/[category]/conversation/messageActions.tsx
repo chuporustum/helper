@@ -312,10 +312,10 @@ export const MessageActions = () => {
       toast.success(close ? "Replied and closed" : "Message sent!", {
         duration: 10000,
         description: (
-          <div className="flex flex-wrap gap-2 items-center mt-2">
+          <div className="flex gap-2 items-center mt-2">
             {close && (
               <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-secondary/50 text-secondary-foreground hover:bg-secondary transition-colors"
+                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
                 onClick={() => {
                   navigateToConversation(conversation.slug);
                 }}
@@ -325,14 +325,14 @@ export const MessageActions = () => {
               </button>
             )}
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
               onClick={() => knowledgeBankDialogState.show(emailId)}
             >
               <Lightbulb className="h-3 w-3" />
               Generate knowledge
             </button>
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
               onClick={async () => {
                 try {
                   await utils.client.mailbox.conversations.undo.mutate({
