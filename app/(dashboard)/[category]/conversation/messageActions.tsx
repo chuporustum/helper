@@ -315,7 +315,7 @@ export const MessageActions = () => {
           <div className="flex gap-2 items-center mt-2">
             {close && (
               <button
-                className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
                 onClick={() => {
                   navigateToConversation(conversation.slug);
                 }}
@@ -325,14 +325,14 @@ export const MessageActions = () => {
               </button>
             )}
             <button
-              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
+              className="inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
               onClick={() => knowledgeBankDialogState.show(emailId)}
             >
               <Lightbulb className="h-3 w-3" />
               Generate knowledge
             </button>
             <button
-              className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
+              className="inline-flex items-center gap-1 px-1.5 py-1 text-xs font-medium rounded-md border hover:bg-accent transition-colors"
               onClick={async () => {
                 try {
                   await utils.client.mailbox.conversations.undo.mutate({
