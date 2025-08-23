@@ -50,17 +50,17 @@ test.describe("Next Ticket Preview", () => {
   });
 
   test.beforeEach(async ({ page }) => {
-    // Navigate to mailbox first to establish conversation list context  
-    await page.goto("/gumroad");
+    // Navigate to conversations list page to establish conversation list context  
+    await page.goto("/mine");
     await page.waitForLoadState("networkidle");
     
     // Wait for conversation list to load by looking for conversation links
-    await page.waitForSelector('a[href*="/conversations?id="]', { timeout: 10000 });
+    await page.waitForSelector('a[href*="/mine?id="]', { timeout: 10000 });
     
     // Add explicit wait for the conversation list to be fully populated
     // This ensures that conversationListData is available to NextTicketPreview
     await page.waitForFunction(() => {
-      const links = document.querySelectorAll('a[href*="/conversations?id="]');
+      const links = document.querySelectorAll('a[href*="/mine?id="]');
       return links.length >= 2; // Ensure we have at least 2 conversations for Next Ticket Preview
     }, { timeout: 10000 });
     
@@ -68,7 +68,7 @@ test.describe("Next Ticket Preview", () => {
     await page.waitForTimeout(2000); // Brief pause to ensure TRPC context is ready
     
     // Click on first conversation to load it with proper context
-    const firstConversation = page.locator('a[href*="/conversations?id="]').first();
+    const firstConversation = page.locator('a[href*="/mine?id="]').first();
     await firstConversation.click();
     await page.waitForLoadState("networkidle");
     
@@ -187,7 +187,7 @@ test.describe("Next Ticket Preview", () => {
       // Verify we navigated to a different conversation
       const newUrl = page.url();
       expect(newUrl).not.toBe(initialUrl);
-      expect(newUrl).toMatch(/\/gumroad\/conversations\?id=/);
+      expect(newUrl).toMatch(/\/mine\?id=/);
       
       // Verify we're on a valid conversation page
       const conversationContent = page.locator('[aria-label="Conversation editor"], .prose, [data-testid="conversation-content"]');
@@ -208,7 +208,7 @@ test.describe("Next Ticket Preview", () => {
     if (await previewContainer.count() > 0) {
       // Navigate to the last conversation to test "First Ticket" label
       const lastConversation = testConversations[testConversations.length - 1];
-      await page.goto(`/gumroad/conversations?id=${lastConversation.id}`);
+      await page.goto(`/mine?id=${lastConversation.id}`);
       await page.waitForLoadState("networkidle");
       
       await takeDebugScreenshot(page, "last-conversation.png");
