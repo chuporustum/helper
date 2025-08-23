@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../../db/client";
 import { conversations } from "../../../db/schema";
 import { takeDebugScreenshot } from "../utils/test-helpers";
@@ -35,6 +35,18 @@ test.describe("Next Ticket Preview", () => {
 
   test.beforeAll(async () => {
     testConversations = await getTestConversations();
+    
+    // Ensure Next Ticket Preview feature is enabled in the database
+    try {
+      await db.execute(sql`
+        UPDATE mailboxes_mailbox 
+        SET preferences = COALESCE(preferences, '{}') || '{"showNextTicketPreview": true}' 
+        WHERE slug = 'gumroad';
+      `);
+      console.log("✅ Enabled Next Ticket Preview feature in database");
+    } catch (error) {
+      console.error("⚠️ Failed to enable Next Ticket Preview in database:", error);
+    }
   });
 
   test.beforeEach(async ({ page }) => {
@@ -45,10 +57,23 @@ test.describe("Next Ticket Preview", () => {
     // Wait for conversation list to load by looking for conversation links
     await page.waitForSelector('a[href*="/conversations?id="]', { timeout: 10000 });
     
+    // Add explicit wait for the conversation list to be fully populated
+    // This ensures that conversationListData is available to NextTicketPreview
+    await page.waitForFunction(() => {
+      const links = document.querySelectorAll('a[href*="/conversations?id="]');
+      return links.length >= 2; // Ensure we have at least 2 conversations for Next Ticket Preview
+    }, { timeout: 10000 });
+    
+    // Also wait for TRPC queries to complete by checking if conversation data is loaded
+    await page.waitForTimeout(2000); // Brief pause to ensure TRPC context is ready
+    
     // Click on first conversation to load it with proper context
     const firstConversation = page.locator('a[href*="/conversations?id="]').first();
     await firstConversation.click();
     await page.waitForLoadState("networkidle");
+    
+    // Wait for conversation content to fully load
+    await page.waitForSelector('[data-testid="conversation-content"], .prose, [aria-label="Conversation editor"]', { timeout: 10000 });
   });
 
   test("should display Next Ticket Preview when feature is enabled", async ({ page }) => {
