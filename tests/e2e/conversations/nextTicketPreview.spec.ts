@@ -43,7 +43,6 @@ test.describe("Next Ticket Preview", () => {
         SET preferences = COALESCE(preferences, '{}') || '{"showNextTicketPreview": true}' 
         WHERE slug = 'gumroad';
       `);
-      console.log("✅ Enabled Next Ticket Preview feature in database");
     } catch (error) {
       console.error("⚠️ Failed to enable Next Ticket Preview in database:", error);
     }
@@ -55,22 +54,30 @@ test.describe("Next Ticket Preview", () => {
     await page.waitForLoadState("networkidle");
     
     // Wait for conversation list to load by looking for conversation links
-    await page.waitForSelector('a[href*="/mine?id="]', { timeout: 10000 });
+    await page.waitForSelector('a[href*="/conversations?id="]', { timeout: 10000 });
     
     // Add explicit wait for the conversation list to be fully populated
     // This ensures that conversationListData is available to NextTicketPreview
     await page.waitForFunction(() => {
-      const links = document.querySelectorAll('a[href*="/mine?id="]');
+      const links = document.querySelectorAll('a[href*="/conversations?id="]');
       return links.length >= 2; // Ensure we have at least 2 conversations for Next Ticket Preview
     }, { timeout: 10000 });
     
-    // Also wait for TRPC queries to complete by checking if conversation data is loaded
-    await page.waitForTimeout(2000); // Brief pause to ensure TRPC context is ready
+    // Get the first conversation ID from the link and navigate directly to /mine?id= pattern
+    // This is where the NextTicketPreview component actually renders
+    const firstConversationLink = page.locator('a[href*="/conversations?id="]').first();
+    const href = await firstConversationLink.getAttribute('href');
+    const conversationId = href?.match(/id=([^&]+)/)?.[1];
     
-    // Click on first conversation to load it with proper context
-    const firstConversation = page.locator('a[href*="/mine?id="]').first();
-    await firstConversation.click();
-    await page.waitForLoadState("networkidle");
+    if (conversationId) {
+      // Navigate directly to the /mine?id= pattern where the component is visible
+      await page.goto(`/mine?id=${conversationId}`);
+      await page.waitForLoadState("networkidle");
+    } else {
+      // Fallback to clicking if we can't parse the ID
+      await firstConversationLink.click();
+      await page.waitForLoadState("networkidle");
+    }
     
     // Wait for conversation content to fully load
     await page.waitForSelector('[data-testid="conversation-content"], .prose, [aria-label="Conversation editor"]', { timeout: 10000 });
@@ -112,9 +119,7 @@ test.describe("Next Ticket Preview", () => {
 
       await takeDebugScreenshot(page, "next-ticket-preview-visible.png");
 
-      console.log("✅ Next Ticket Preview is properly displayed and functional");
     } else {
-      console.log("ℹ️ Next Ticket Preview is not enabled - this is acceptable");
       await takeDebugScreenshot(page, "next-ticket-preview-disabled.png");
     }
   });
@@ -155,9 +160,6 @@ test.describe("Next Ticket Preview", () => {
       
       await takeDebugScreenshot(page, "after-expand.png");
       
-      console.log("✅ Collapse/expand functionality works correctly");
-    } else {
-      console.log("ℹ️ Skipping collapse test - Next Ticket Preview not enabled");
     }
   });
 
@@ -195,9 +197,6 @@ test.describe("Next Ticket Preview", () => {
       
       await takeDebugScreenshot(page, "after-switch.png");
       
-      console.log(`✅ Successfully navigated from ${initialUrl} to ${newUrl}`);
-    } else {
-      console.log("ℹ️ Skipping navigation test - Next Ticket Preview not enabled");
     }
   });
 
@@ -220,10 +219,7 @@ test.describe("Next Ticket Preview", () => {
         // Should show either "Next Ticket" or "First Ticket" depending on conversation list
         expect(headerText).toMatch(/^(Next|First) Ticket:/);
         
-        console.log(`✅ Correct ticket label displayed: "${headerText}"`);
       }
-    } else {
-      console.log("ℹ️ Skipping label test - Next Ticket Preview not enabled");
     }
   });
 
@@ -238,14 +234,10 @@ test.describe("Next Ticket Preview", () => {
       const vipBadgeCount = await vipBadge.count();
       if (vipBadgeCount > 0) {
         await expect(vipBadge).toBeVisible();
-        console.log("✅ VIP badge displayed correctly");
       } else {
-        console.log("ℹ️ No VIP customers in current ticket preview");
       }
       
       await takeDebugScreenshot(page, "vip-badge-check.png");
-    } else {
-      console.log("ℹ️ Skipping VIP badge test - Next Ticket Preview not enabled");
     }
   });
 });
