@@ -42,7 +42,6 @@ export const NextTicketPreview = ({ className }: { className?: string }) => {
 
   return (
     <div className={cn("border rounded-lg bg-muted/30 shadow-sm", className)}>
-      {/* Collapsible Header */}
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -86,7 +85,6 @@ export const NextTicketPreview = ({ className }: { className?: string }) => {
         </Button>
       </div>
 
-      {/* Collapsible Content */}
       {!isCollapsed && (
         <div className="px-3 pb-3">
           <div className="flex items-start gap-3 pt-2">
