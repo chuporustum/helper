@@ -26,6 +26,7 @@ import {
   type AttachedFile,
   type ConversationEvent,
   type Conversation as ConversationType,
+  type GuideSession,
   type Message,
   type Note,
 } from "@/app/types/global";
@@ -49,7 +50,7 @@ import { MessageActions } from "./messageActions";
 import { NextTicketPreview } from "./nextTicketPreview";
 
 export type ConversationWithNewMessages = Omit<ConversationType, "messages"> & {
-  messages: ((Message | Note | ConversationEvent) & { isNew?: boolean })[];
+  messages: ((Message | Note | ConversationEvent | GuideSession) & { isNew?: boolean })[];
 };
 
 const { Carousel, CarouselButton, CarouselContext } = createCarousel<AttachedFile>();
@@ -245,13 +246,15 @@ const ConversationHeader = ({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span
-            className="text-sm text-muted-foreground whitespace-nowrap text-center mx-1"
-            data-testid="conversation-counter"
-          >
-            {currentIndex + 1} of {currentTotal}
-            {hasNextPage ? "+" : ""}
-          </span>
+          {currentIndex >= 0 && (
+            <span
+              className="text-sm text-muted-foreground whitespace-nowrap text-center mx-1"
+              data-testid="conversation-counter"
+            >
+              {currentIndex + 1} of {currentTotal}
+              {hasNextPage ? "+" : ""}
+            </span>
+          )}
           <Button variant="ghost" size="sm" iconOnly onClick={moveToNextConversation} aria-label="Next conversation">
             <ChevronRight className="h-4 w-4" />
           </Button>
